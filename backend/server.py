@@ -30,13 +30,14 @@ from pydantic import BaseModel, Field
 import uvicorn
 
 from layer1_agent import (
-    analyze_problem_async,
+    analyze_problem_safe,
     get_supported_topics,
     PHYSICS_TOPICS,
     TextParser,
     RuleEngine,
 )
 from layer2_engine import generate_act_plan
+from layer2_solution_steps import generate_solution_steps, solution_steps_to_text
 from layer3_storyboard import expand_storyboard, format_as_text
 from layer4_engine import orchestrate, generate_html_timeline
 
@@ -119,7 +120,7 @@ async def analyze(req: AnalyzeRequest):
     llm_cfg = llm_config if use_llm else None
 
     try:
-        result = await analyze_problem_async(text, llm_cfg)
+        result = await analyze_problem_safe(text, llm_cfg)
         return AnalyzeResponse(
             success=True,
             data=result,
@@ -128,6 +129,7 @@ async def analyze(req: AnalyzeRequest):
                 "llmAvailable": llm_config is not None,
                 "llmUsed": use_llm,
                 "detectedTopics": detected_info,
+                "analysisStatus": result.get("status", "auto_resolved"),
             }
         )
     except ValueError as e:
@@ -165,7 +167,7 @@ async def analyze_acts(req: AnalyzeRequest):
     llm_cfg = llm_config if use_llm else None
 
     try:
-        layer1_result = await analyze_problem_async(text, llm_cfg)
+        layer1_result = await analyze_problem_safe(text, llm_cfg)
         act_plan = generate_act_plan(layer1_result)
         return AnalyzeResponse(
             success=True,
@@ -216,8 +218,13 @@ async def analyze_storyboard(req: AnalyzeRequest):
     llm_cfg = llm_config if use_llm else None
 
     try:
-        layer1_result = await analyze_problem_async(text, llm_cfg)
+        layer1_result = await analyze_problem_safe(text, llm_cfg)
         act_plan = generate_act_plan(layer1_result)
+
+        # Layer 2.5: 解题步骤生成
+        solution_steps = generate_solution_steps(layer1_result)
+        solution_steps_text = solution_steps_to_text(solution_steps)
+
         storyboard = expand_storyboard(act_plan)
         storyboard_text = format_as_text(storyboard)
 
@@ -239,6 +246,8 @@ async def analyze_storyboard(req: AnalyzeRequest):
             data={
                 "layer1": layer1_result,
                 "layer2": act_plan,
+                "layer2_5": solution_steps,
+                "layer2_5_text": solution_steps_text,
                 "layer3": storyboard,
                 "layer3_text": storyboard_text,
                 "layer4_url": layer4_url,
@@ -248,7 +257,8 @@ async def analyze_storyboard(req: AnalyzeRequest):
                 "llmAvailable": llm_config is not None,
                 "llmUsed": use_llm,
                 "detectedTopics": detected_info,
-                "layers": ["layer1", "layer2", "layer3", "layer4"]
+                "layers": ["layer1", "layer2", "layer2_5", "layer3", "layer4"],
+                "analysisStatus": layer1_result.get("status", "auto_resolved")
             }
         )
     except ValueError as e:

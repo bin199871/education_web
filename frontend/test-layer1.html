@@ -344,19 +344,67 @@
       display: inline-block; width: 10px; height: 10px;
       border-radius: 50%; margin-right: 2px;
     }
+    /* 解题步骤卡片 */
+    .step-card {
+      background: #1e293b;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      border: 1px solid #334155;
+    }
+    .step-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #334155;
+    }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .step-title { font-weight: 600; font-size: 14px; flex: 1; color: #e2e8f0; }
+    .step-type-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 8px;
+      background: #334155; color: #94a3b8;
+    }
+    .step-body { padding: 10px 14px; }
+    .step-formula {
+      background: #0f172a; border-radius: 6px; padding: 6px 10px;
+      font-family: monospace; font-size: 14px; color: #fbbf24;
+      margin-bottom: 6px; display: inline-block;
+    }
+    .step-content { font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-bottom: 6px; }
+    .step-narration {
+      font-size: 12px; color: #94a3b8; font-style: italic;
+      padding: 6px 10px; background: #0f172a; border-radius: 6px;
+      border-left: 3px solid #60a5fa;
+    }
+    .step-narration::before { content: "🎙️ "; }
+    .step-anim {
+      font-size: 11px; color: #64748b; margin-top: 4px;
+    }
+    .step-anim::before { content: "🎬 "; }
+    .steps-meta {
+      background: #1e293b; border-radius: 10px; padding: 10px 14px;
+      margin-bottom: 12px; border: 1px solid #334155;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px;
+    }
+    .steps-method { color: #fbbf24; font-weight: 600; }
+    .steps-count { color: #94a3b8; }
   </style>
 </head>
 <body>
 <div class="app">
   <h1>
-    🧪 Layer 1 → Layer 2 · 题目分析 + 幕结构
+    🧪 题目分析 / 解题过程 / 幕结构 / 分镜 / 动画
     <span class="server-status" id="serverStatus">
       <span class="server-dot checking" id="serverDot"></span>
       <span id="serverLabel">连接中…</span>
     </span>
   </h1>
   <div class="subtitle">
-    <span>Layer 1: 题目分析 → Layer 2: 幕结构匹配 · 规则解析 + LLM 增强</span>
+    <span>题目分析 → 解题过程 → 幕结构 → 分镜脚本 · 规则解析 + LLM 增强</span>
     <span style="font-size:12px;color:#a0aec0">
       内置主题：<span class="badge-count" id="topicCount">0</span>
     </span>
@@ -411,15 +459,17 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
         <span id="detectedTopics">—</span>
       </div>
       <div class="layer-tabs" style="margin-bottom:8px;display:flex;gap:0;border-bottom:2px solid #e2e8f0">
-        <button class="tab-btn active" data-layer="1" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid #4299e1;margin-bottom:-2px;color:#4299e1;font-weight:600">📋 Layer 1 分析结果</button>
-        <button class="tab-btn" data-layer="2" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">🎬 Layer 2 幕结构</button>
-        <button class="tab-btn" data-layer="3" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">📝 Layer 3 分镜文稿</button>
-        <button class="tab-btn" data-layer="4" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096" onclick="window.open('/','_blank')">🎬 Layer 4 动画 ▶</button>
+        <button class="tab-btn active" data-layer="5" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid #4299e1;margin-bottom:-2px;color:#4299e1;font-weight:600">📝 解题过程</button>
+        <button class="tab-btn" data-layer="1" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">📋 分析结果</button>
+        <button class="tab-btn" data-layer="2" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">🎬 幕结构</button>
+        <button class="tab-btn" data-layer="3" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">📝 分镜文稿</button>
+        <button class="tab-btn" data-layer="4" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096" onclick="window.open('/','_blank')">🎬 动画播放 ▶</button>
       </div>
       <div class="output-area">
         <pre id="output">点击"分析题目"查看结果…</pre>
         <div id="layer2Output" style="display:none;max-height:500px;overflow-y:auto;padding:4px"></div>
         <div id="layer3Output" style="display:none;max-height:500px;overflow-y:auto;padding:4px;background:#2d3748;border-radius:8px;color:#e2e8f0;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:inherit"></div>
+        <div id="layer5Output" style="display:none;max-height:500px;overflow-y:auto;padding:4px"></div>
       </div>
     </div>
   </div>
@@ -445,8 +495,8 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
   var llmEnabled = false;
   var serverOnline = false;
   var analyzing = false;
-  var activeLayer = 1;   // 1 = Layer 1 JSON, 2 = Layer 2 幕结构
-  var cachedData = null; // { layer1, layer2, meta }
+  var activeLayer = 5;   // 5=解题过程, 1=分析结果, 2=幕结构, 3=分镜
+  var cachedData = null; // { layer1, layer2, layer2_5, layer3, meta }
 
   // ─── 后端 API 地址 ───
   var API_BASE = window.location.origin;
@@ -512,6 +562,7 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
   var tabBtns = document.querySelectorAll('.tab-btn');
   var layer2Div = document.getElementById('layer2Output');
   var layer3Div = document.getElementById('layer3Output');
+  var layer5Div = document.getElementById('layer5Output');
   tabBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
       var layer = parseInt(this.getAttribute('data-layer'));
@@ -536,13 +587,22 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     var outputEl = document.getElementById('output');
     var layer2El = document.getElementById('layer2Output');
     var layer3El = document.getElementById('layer3Output');
+    var layer5El = document.getElementById('layer5Output');
     outputEl.style.display = 'none';
     layer2El.style.display = 'none';
     layer3El.style.display = 'none';
+    layer5El.style.display = 'none';
     if (layer === 1) {
       outputEl.style.display = '';
       if (cachedData.layer1) {
         outputEl.textContent = JSON.stringify(cachedData.layer1, null, 2);
+      }
+    } else if (layer === 5) {
+      layer5El.style.display = '';
+      if (cachedData.layer2_5) {
+        renderSolutionSteps(cachedData.layer2_5);
+      } else {
+        layer5El.innerHTML = '<div style="color:#94a3b8;padding:20px;text-align:center">暂无解题步骤数据</div>';
       }
     } else if (layer === 2) {
       layer2El.style.display = '';
@@ -680,6 +740,134 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     document.getElementById('layer2Output').innerHTML = html;
   }
 
+  // ─── 渲染解题步骤 ───
+  function renderSolutionSteps(solution) {
+    var el = document.getElementById('layer5Output');
+    if (!solution || !solution.steps) {
+      el.innerHTML = '<div style="color:#94a3b8;padding:20px;text-align:center">暂无解题步骤数据</div>';
+      return;
+    }
+
+    // 从 cachedData 获取选项分析
+    var layer1 = cachedData && cachedData.layer1;
+    var options = layer1 ? layer1.options_analysis : [];
+    var answer = layer1 ? layer1.answer : '';
+    var qtype = layer1 ? (layer1.question_type || '选择题') : '选择题';
+
+    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#e879f9'];
+    var typeNames = {
+      'concept_clarification': '概念澄清',
+      'formula_application': '公式应用',
+      'option_analysis': '选项分析',
+      'option_check': '选项判断',
+      'conclusion': '得出结论'
+    };
+
+    var html = '<div class="steps-meta">';
+    html += '<span class="steps-method">解题方法：' + (solution.method || '通用') + '</span>';
+    html += '<span class="steps-count">共 ' + solution.total_steps + ' 步 · 约 ' + solution.total_duration_sec + ' 秒</span>';
+    html += '</div>';
+
+    // ── 选择题：先展示答案卡片 ──
+    if (qtype === '选择题' && answer && options.length > 0) {
+      var correctOpt = null;
+      var wrongOpts = [];
+      for (var oi = 0; oi < options.length; oi++) {
+        if (options[oi].correct) {
+          correctOpt = options[oi];
+        } else {
+          wrongOpts.push(options[oi]);
+        }
+      }
+      html += '<div class="step-card" style="border:2px solid #22c55e">';
+      html += '<div class="step-header" style="background:#22c55e22">';
+      html += '<div class="step-num" style="background:#22c55e;color:#fff;font-size:18px;width:40px;height:40px">✓</div>';
+      html += '<div class="step-title" style="font-size:17px;color:#22c55e">正确答案：' + answer + '</div>';
+      html += '<span class="step-type-badge" style="background:#22c55e33;color:#22c55e">' + qtype + '</span>';
+      html += '</div>';
+      if (correctOpt && correctOpt.reason) {
+        html += '<div class="step-body">';
+        html += '<div style="font-size:13px;color:#86efac;line-height:1.6;padding:4px 0">' + correctOpt.statement + '</div>';
+        html += '<div class="step-narration" style="border-left-color:#22c55e">' + correctOpt.reason + '</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // 错误选项列表
+      html += '<div style="font-size:13px;color:#94a3b8;padding:8px 4px;margin-top:4px">❌ 错误选项分析：</div>';
+      for (var oi = 0; oi < wrongOpts.length; oi++) {
+        var w = wrongOpts[oi];
+        html += '<div class="step-card" style="border:1px solid #ef444444">';
+        html += '<div class="step-header">';
+        html += '<div class="step-num" style="background:#ef444422;color:#ef4444;font-size:16px">✗</div>';
+        html += '<div class="step-title" style="color:#fca5a5">选项' + w.label + '</div>';
+        html += '</div>';
+        html += '<div class="step-body">';
+        html += '<div style="font-size:13px;color:#cbd5e1;line-height:1.6;padding:2px 0">' + w.statement + '</div>';
+        if (w.reason) {
+          html += '<div class="step-narration" style="border-left-color:#ef4444">' + w.reason + '</div>';
+        }
+        html += '</div></div>';
+      }
+      html += '<div style="margin:8px 0"></div>';  // 间隔
+    }
+
+    // ── 解题思路说明 ──
+    html += '<div style="font-size:12px;color:#64748b;margin-bottom:10px;padding:8px 12px;background:#1e293b;border-radius:8px;border:1px solid #334155">';
+    html += '💡 解题思路：' + (solution.approach || '');
+    html += '</div>';
+
+    // ── 逐步推导（跳过纯选项分析步骤，因为上面已经展示了） ──
+    var stepStart = 0;
+    if (qtype === '选择题' && answer && options.length > 0) {
+      // 找到第一个非 option_check 步骤作为开始
+      for (var si = 0; si < solution.steps.length; si++) {
+        if (solution.steps[si].step_type !== 'option_check' &&
+            solution.steps[si].step_type !== 'option_analysis') {
+          stepStart = si;
+          break;
+        }
+      }
+    }
+
+    for (var si = stepStart; si < solution.steps.length; si++) {
+      var step = solution.steps[si];
+      // 选择题模式下跳过纯选项判断步骤（上面已展示）
+      if (qtype === '选择题' && (step.step_type === 'option_check' || step.step_type === 'option_analysis')) {
+        continue;
+      }
+      var color = stepColors[si % stepColors.length];
+      var typeLabel = typeNames[step.step_type] || step.step_type || '';
+
+      html += '<div class="step-card">';
+      html += '<div class="step-header">';
+      html += '<div class="step-num" style="background:' + color + '22;color:' + color + '">' + step.step_number + '</div>';
+      html += '<div class="step-title">' + step.title + '</div>';
+      if (typeLabel) {
+        html += '<span class="step-type-badge">' + typeLabel + '</span>';
+      }
+      html += '</div>';
+
+      html += '<div class="step-body">';
+      if (step.formula) {
+        html += '<div class="step-formula">' + step.formula + '</div>';
+      }
+      if (step.content) {
+        html += '<div class="step-content">' + step.content + '</div>';
+      }
+      if (step.narration) {
+        html += '<div class="step-narration">' + step.narration + '</div>';
+      }
+      if (step.animation_hint) {
+        html += '<div class="step-anim">' + step.animation_hint + '</div>';
+      }
+      html += '<div style="font-size:11px;color:#475569;text-align:right;margin-top:4px">⏱ ' + step.duration_sec + '秒</div>';
+      html += '</div></div>';
+    }
+
+    el.innerHTML = html;
+  }
+
   function formatTime(frame) {
     var secs = Math.floor(frame / 60);
     var min = Math.floor(secs / 60);
@@ -740,6 +928,7 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
       cachedData = {
         layer1: layer1Data,
         layer2: layer2Data,
+        layer2_5: result.data.layer2_5,
         layer3: layer3Data,
         layer3_text: layer3Text,
         meta: meta

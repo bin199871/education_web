@@ -3,14 +3,19 @@ Layer 1 — 题目分析 Agent (Python 版)
 ============================================================
 混合模式：规则解析框架 + 可插拔 LLM 后端
 
+置信度体系：每次分析附带置信度评分，不确定时主动拒绝，
+           宁可不答，不错答。
+
 用法:
-    from layer1_agent import analyze_problem
+    from layer1_agent import analyze_problem_safe
 
     # 纯规则模式
-    result = analyze_problem("题目文本...")
+    result = analyze_problem_safe("题目文本...")
+    if result["status"] == "needs_review":
+        print("需人工审核:", result["warnings"])
 
     # LLM 增强模式
-    result = await analyze_problem("题目文本...", llm_config={...})
+    result = await analyze_problem_safe("题目文本...", llm_config={...})
 """
 
 import re
@@ -33,7 +38,7 @@ PHYSICS_TOPICS = {
         "key_formula": "G = mg",
         "variables": {
             "m": {"name": "质量", "unit": "kg", "property": "不随位置改变，固有属性"},
-            "g": {"name": "重力加速度", "unit": "m/s²", "property": "随星球和位置变化"},
+            "g": {"name": "重力加速度", "unit": "m/s", "property": "随星球和位置变化"},
             "G": {"name": "重力", "unit": "N", "property": "随 g 值变化，G=mg"}
         },
         "misconceptions": [
@@ -61,7 +66,7 @@ PHYSICS_TOPICS = {
             "F": {"name": "合外力", "unit": "N",
                   "property": "物体所受所有力的矢量和"},
             "m": {"name": "质量", "unit": "kg", "property": "物体的惯性量度"},
-            "a": {"name": "加速度", "unit": "m/s²",
+            "a": {"name": "加速度", "unit": "m/s",
                   "property": "与合外力同向，大小正比于力"}
         },
         "misconceptions": [
@@ -80,10 +85,10 @@ PHYSICS_TOPICS = {
     },
     "circular_motion": {
         "keywords": ["圆周", "向心", "离心", "匀速圆周", "轨道", "环绕",
-                     "角速度", "线速度", "周期", "F=mv²/r"],
+                     "角速度", "线速度", "周期", "F=mv/r"],
         "concept_name": "匀速圆周运动",
         "concept_desc": "物体沿圆周运动，速度大小不变、方向不断改变，需要向心力维持",
-        "key_formula": "F = mv²/r = mω²r",
+        "key_formula": "F = mv/r = mωr",
         "variables": {
             "F": {"name": "向心力", "unit": "N",
                   "property": "指向圆心，不是独立力而是合力效果"},
@@ -109,7 +114,7 @@ PHYSICS_TOPICS = {
     },
     "energy": {
         "keywords": ["能量", "功", "功率", "动能", "势能", "机械能",
-                     "守恒", "动能定理", "W=Fs", "Ep=mgh", "Ek=mv²/2"],
+                     "守恒", "动能定理", "W=Fs", "Ep=mgh", "Ek=mv/2"],
         "concept_name": "能量与功",
         "concept_desc": "功是能量转化的量度，机械能包括动能和势能，"
                         "在只有保守力做功时机械能守恒",
@@ -118,7 +123,7 @@ PHYSICS_TOPICS = {
             "W": {"name": "功", "unit": "J",
                   "property": "力在位移方向上的累积效应"},
             "Ek": {"name": "动能", "unit": "J",
-                   "property": "Ek = ½mv²，与速度平方成正比"},
+                   "property": "Ek = mv/2，与速度平方成正比"},
             "Ep": {"name": "势能", "unit": "J",
                    "property": "重力势能 Ep = mgh"},
             "P": {"name": "功率", "unit": "W", "property": "P = W/t = Fv"}
@@ -194,98 +199,182 @@ PHYSICS_TOPICS = {
 
 
 # ==================================================================
-#  文本解析引擎
+#  关键词权重与消歧规则
+# ==================================================================
+
+KEYWORD_WEIGHTS = {
+    "质量": 3, "重力": 3, "引力": 3, "g值": 5,
+    "自由落体加速度": 5, "月球": 2, "天平": 4,
+    "弹簧秤": 4, "称重": 3, "重量": 2, "G=mg": 6,
+    "牛顿": 3, "力": 1, "加速度": 3, "F=ma": 6,
+    "惯性": 3, "作用力": 2, "反作用力": 3, "合外力": 4,
+    "牛顿第一": 5, "牛顿第二": 5, "牛顿第三": 5,
+    "圆周": 4, "向心": 4, "离心": 3, "匀速圆周": 5,
+    "轨道": 2, "环绕": 2, "角速度": 5, "线速度": 4,
+    "周期": 2, "F=mv/r": 6,
+    "能量": 2, "功": 2, "功率": 2, "动能": 3, "势能": 3,
+    "机械能": 3, "守恒": 2, "动能定理": 4, "W=Fs": 5,
+    "Ep=mgh": 5, "Ek=mv/2": 5,
+    "电流": 4, "电压": 4, "电阻": 4, "电路": 3,
+    "欧姆": 4, "串联": 3, "并联": 3, "电荷": 3,
+    "I=U/R": 6, "电功率": 3, "P=UI": 5,
+    "动量": 4, "冲量": 4, "碰撞": 3, "Ft=mv": 5,
+    "弹性碰撞": 5, "非弹性碰撞": 5, "动量定理": 4,
+}
+
+NEGATIVE_KEYWORDS = {
+    "quality_gravity": [],
+    "newton_law": ["电流", "电压", "电阻", "电路", "欧姆",
+                    "电荷", "串联", "并联", "I=U/R"],
+    "circular_motion": ["电流", "电压", "电阻", "电路",
+                         "欧姆", "I=U/R"],
+    "energy": [],
+    "electricity": ["牛顿", "惯性", "碰撞", "动量", "冲量",
+                     "弹性碰撞", "动量定理"],
+    "momentum": ["电流", "电压", "电阻", "电路", "欧姆",
+                  "I=U/R", "串联", "并联"],
+}
+
+TOPIC_DOMINANCE_THRESHOLD = 1.8
+CONFIDENCE_REJECT_THRESHOLD = 0.6
+
+
+# ==================================================================
+#  多策略文本解析器
 # ==================================================================
 
 class TextParser:
-    """解析题目文本，提取题干和选项。"""
+    """多策略文本解析器。"""
+
+    PARSER_STRATEGIES = [
+        {
+            "name": "standard_dot",
+            "pattern": re.compile(r'([A-Da-d])[.、)） ]\s*'),
+            "min_matches": 2,
+            "base_confidence": 0.80,
+        },
+        {
+            "name": "paren_first",
+            "pattern": re.compile(r'[（(]([A-Da-d])[）)]\s*'),
+            "min_matches": 2,
+            "base_confidence": 0.70,
+        },
+        {
+            "name": "chinese_num",
+            "pattern": re.compile(r'([①②③④])[.、)） ]\s*'),
+            "min_matches": 2,
+            "base_confidence": 0.60,
+            "label_map": {"①": "A", "②": "B", "③": "C", "④": "D"}
+        },
+        {
+            "name": "spaced",
+            "pattern": re.compile(r'([A-Da-d])\s{2,}(\S)'),
+            "min_matches": 2,
+            "base_confidence": 0.50,
+        },
+    ]
 
     @staticmethod
-    def parse(raw_text: str) -> dict:
-        """
-        将原始题目文本解析为结构化片段。
-        返回 {"stem": str, "options": [{"label":str, "text":str}]}
-        """
-        if not raw_text or not isinstance(raw_text, str):
-            return {"stem": "", "options": []}
+    def _try_strategy(text, strategy):
+        matches = list(strategy["pattern"].finditer(text))
+        if len(matches) < strategy["min_matches"]:
+            return None
 
-        text = raw_text.strip()
+        label_map = strategy.get("label_map", None)
+        confidence = strategy["base_confidence"]
 
-        # 匹配选项标签：A. / A、 / A) / A． (全角点) 等
-        option_pattern = re.compile(r'([A-Da-d])[.、)）．\s]\s*')
-        matches = list(option_pattern.finditer(text))
-
-        if len(matches) < 2:
-            return {"stem": text, "options": []}
-
-        # 取前 4 个按 A,B,C,D 顺序出现的选项
         abcd = []
         for i, m in enumerate(matches):
-            expected = chr(65 + i)  # A, B, C, D
-            if m.group(1).upper() == expected and i < 4:
-                abcd.append(m)
+            raw = m.group(1).upper() if not label_map else label_map.get(m.group(1), "")
+            if raw == chr(65 + i) and i < 4:
+                abcd.append((raw, m.start(), m.end()))
 
         if len(abcd) < 2:
-            return {"stem": text, "options": []}
+            return None
 
-        # 题干 = 文本开始到第一个选项之前
-        stem = text[:abcd[0].start()].strip()
-
+        stem = text[:abcd[0][1]].strip()
         options = []
-        for i, match in enumerate(abcd):
-            # 选项文本从标签之后开始
-            label_end = match.start() + len(match.group(0))
-            while label_end < len(text) and text[label_end] == ' ':
-                label_end += 1
+        for i, (label, ms, me) in enumerate(abcd):
+            le = me
+            while le < len(text) and text[le] == " ":
+                le += 1
+            end = abcd[i + 1][1] if i + 1 < len(abcd) else len(text)
+            opt_text = text[le:end].strip()
+            opt_text = re.sub(r'[；;]。，,]+$', "", opt_text).strip()
+            options.append({"label": label, "text": opt_text})
 
-            if i + 1 < len(abcd):
-                end = abcd[i + 1].start()
-            else:
-                end = len(text)
+        if len(options) == 4:
+            confidence = min(1.0, confidence + 0.10)
+        if len(stem) >= 30:
+            confidence = min(1.0, confidence + 0.05)
 
-            opt_text = text[label_end:end].strip()
-            opt_text = re.sub(r'[；;。，,]+$', '', opt_text).strip()
-            options.append({"label": match.group(1).upper(), "text": opt_text})
-
-        return {"stem": stem, "options": options}
+        return stem, options, round(confidence, 2)
 
     @staticmethod
-    def extract_conditions(text: str) -> list:
-        """从题干中提取数值条件（数字+单位）。"""
-        pattern = re.compile(r'(\d+\.?\d*)\s*'
-                             r'(m/s²|m/s|m|kg|N|J|W|V|A|Ω|s|h|km|g|cm|mm)')
+    def parse(raw_text):
+        if not raw_text or not isinstance(raw_text, str):
+            return {"stem": "", "options": [],
+                    "_parser_used": "none", "_parser_confidence": 0.0}
+        text = raw_text.strip()
+        if not text:
+            return {"stem": "", "options": [],
+                    "_parser_used": "none", "_parser_confidence": 0.0}
+
+        best = None
+        best_conf = 0.0
+        best_name = "none"
+
+        for strategy in TextParser.PARSER_STRATEGIES:
+            result = TextParser._try_strategy(text, strategy)
+            if result:
+                stem, opts, conf = result
+                if conf > best_conf:
+                    best = (stem, opts)
+                    best_conf = conf
+                    best_name = strategy["name"]
+
+        if best:
+            return {"stem": best[0], "options": best[1],
+                    "_parser_used": best_name, "_parser_confidence": best_conf}
+
+        return {"stem": text, "options": [],
+                "_parser_used": "none", "_parser_confidence": 0.0}
+
+    @staticmethod
+    def extract_conditions(text):
+        pattern = re.compile(r"(\d+\.?\d*)\s*(m/s|m/s|m|kg|N|J|W|V|A|Ω|s|h|km|g|cm|mm)")
         return [m.group(0).strip() for m in pattern.finditer(text)]
 
 
 # ==================================================================
-#  规则分析引擎
+#  规则分析引擎（加权版）
 # ==================================================================
 
 class RuleEngine:
-    """基于规则库的物理题目分析。"""
+    """基于加权关键词的物理题目分析，含负向消歧。"""
 
     @staticmethod
-    def detect_topics(text: str) -> list:
-        """
-        检测题目涉及的物理主题。
-        返回按匹配关键词数量排序的列表：
-            [{"topic_id": str, "score": int, "matched_keywords": [str]}]
-        """
+    def detect_topics(text):
         scores = []
-        for topic_id, topic in PHYSICS_TOPICS.items():
+        for tid, topic in PHYSICS_TOPICS.items():
             matched = [kw for kw in topic["keywords"] if kw in text]
-            if matched:
+            weighted = sum(KEYWORD_WEIGHTS.get(kw, 1) for kw in matched)
+            neg_hits = [nk for nk in NEGATIVE_KEYWORDS.get(tid, []) if nk in text]
+            for _ in neg_hits:
+                weighted *= 0.5
+            if matched or neg_hits:
                 scores.append({
-                    "topic_id": topic_id,
+                    "topic_id": tid,
                     "score": len(matched),
-                    "matched_keywords": matched
+                    "weighted_score": round(weighted, 1),
+                    "matched_keywords": matched,
+                    "negative_hits": neg_hits
                 })
-        scores.sort(key=lambda x: x["score"], reverse=True)
+        scores.sort(key=lambda x: x["weighted_score"], reverse=True)
         return scores
 
     @staticmethod
-    def build_core_concept(topic_id: str) -> Optional[dict]:
-        """基于检测到的主题生成核心概念 JSON。"""
+    def build_core_concept(topic_id):
         topic = PHYSICS_TOPICS.get(topic_id)
         if not topic:
             return None
@@ -298,41 +387,29 @@ class RuleEngine:
         }
 
     @staticmethod
-    def analyze_scenario(text: str, topic_id: str) -> dict:
-        """基于题目文本和主题生成场景分析。"""
+    def analyze_scenario(text, topic_id):
         topic = PHYSICS_TOPICS.get(topic_id)
         scenes = []
         if topic and topic.get("scene_templates"):
             for tmpl in topic["scene_templates"]:
-                scenes.append({
-                    "name": tmpl["name"],
-                    "motion": tmpl["motion"],
-                    "force": tmpl["force"]
-                })
-
+                scenes.append({"name": tmpl["name"], "motion": tmpl["motion"],
+                               "force": tmpl["force"]})
         conditions = TextParser.extract_conditions(text)
-        context = (text[:80] + '…') if len(text) > 80 else text
-
-        return {
-            "context": context,
-            "key_conditions": "；".join(conditions) if conditions else "需进一步分析",
-            "scenes": scenes
-        }
+        ctx = (text[:80] + "...") if len(text) > 80 else text
+        return {"context": ctx,
+                "key_conditions": "；".join(conditions) if conditions else "需进一步分析",
+                "scenes": scenes}
 
     @staticmethod
-    def analyze_options(options: list) -> list:
-        """对选项进行初步分析（规则版无法判断对错）。"""
-        return [
-            {"label": o["label"], "statement": o["text"],
-             "correct": False, "reason": "需 LLM 或人工判断"}
-            for o in options
-        ]
+    def analyze_options(options):
+        return [{"label": o["label"], "statement": o["text"],
+                 "correct": False, "reason": "需 LLM 或人工判断"}
+                for o in options]
 
     @staticmethod
-    def guess_answer_from_markers(options: list) -> str:
-        """尝试从特殊标记猜测正确答案（如 ✅/✔ 前缀）。"""
+    def guess_answer_from_markers(options):
         for opt in options:
-            if re.match(r'^[✅✔✓○●]', opt["text"]):
+            if re.match(r"^[✅✔✓○●]", opt["text"]):
                 return opt["label"]
         return ""
 
@@ -341,7 +418,6 @@ class RuleEngine:
 #  LLM 接口
 # ==================================================================
 
-# LLM 调用尝试导入 httpx（优先）或 urllib
 try:
     import httpx
     _HAS_HTTPX = True
@@ -349,12 +425,8 @@ except ImportError:
     _HAS_HTTPX = False
 
 
-def _build_llm_prompt(parsed: dict, topic_hints: list) -> list:
-    """构建发送给 LLM 的消息列表。"""
-    option_lines = "\n".join(
-        f"{o['label']}. {o['text']}" for o in parsed["options"]
-    )
-
+def _build_llm_prompt(parsed, topic_hints):
+    option_lines = "\n".join(f"{o['label']}. {o['text']}" for o in parsed["options"])
     hint_text = ""
     if topic_hints:
         names = []
@@ -365,135 +437,115 @@ def _build_llm_prompt(parsed: dict, topic_hints: list) -> list:
         if names:
             hint_text = f'（提示：该题可能涉及 "{", ".join(names)}"）'
 
-    # 构造输出格式示例
     output_example = json.dumps({
-        "topic": "知识点名称（如「质量与重力辨析」）",
+        "topic": "知识点名称",
         "subject": "物理",
         "question_type": "选择题",
-        "core_concept": {
-            "name": "核心概念名称",
-            "definition": "概念定义（一句话）",
-            "key_formula": "核心公式",
-            "variables": {
-                "变量名如 m": {"name": "中文名", "unit": "单位",
-                            "property": "关键属性说明"}
-            },
-            "common_misconceptions": ["常见误解1（含澄清）", "常见误解2"]
-        },
-        "scenario_analysis": {
-            "context": "题目背景情境描述（一句话概括）",
-            "key_conditions": "关键已知条件",
-            "scenes": [
-                {"name": "场景名", "motion": "运动状态", "force": "受力情况"}
-            ]
-        },
-        "options_analysis": [
-            {"label": "A", "statement": "选项原文",
-             "correct": False, "reason": "判断理由"}
-        ],
-        "answer": "正确的选项字母（如 A/B/C/D）"
+        "core_concept": {"name": "", "definition": "", "key_formula": "",
+                        "variables": {}, "common_misconceptions": []},
+        "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
+        "options_analysis": [{"label": "A", "statement": "", "correct": False, "reason": ""}],
+        "answer": ""
     }, ensure_ascii=False, indent=2)
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "你是一个物理题目分析专家。你需要分析一道物理选择题，"
-                "输出结构化的 JSON 分析结果。\n\n"
-                "输出必须严格遵循以下 JSON 格式"
-                "（不加 markdown 代码块标记，直接输出纯 JSON）：\n"
-                f"{output_example}"
-            )
-        },
-        {
-            "role": "user",
-            "content": (
-                f"请分析以下物理选择题：\n\n"
-                f"【题干】\n{parsed['stem']}\n\n"
-                f"【选项】\n{option_lines}\n"
-                f"{hint_text}\n\n"
-                f"请严格按照上述 JSON 格式输出分析结果。"
-            )
-        }
+    return [
+        {"role": "system", "content": (
+            "You are a physics problem analyzer. Output ONLY valid JSON.\n"
+            "Rules:\n"
+            "1. Mark exactly ONE option as correct (correct: true)\n"
+            "2. The answer field must match the correct option's label\n"
+            "3. Each option must have a reason field with physics basis\n"
+            "4. If unsure, set answer to empty string\n"
+            "5. No markdown formatting, pure JSON only\n"
+            f"Format:\n{output_example}")},
+        {"role": "user", "content": (
+            f"Analyze this physics multiple-choice question:\n\n"
+            f"【Stem】\n{parsed['stem']}\n\n"
+            f"【Options】\n{option_lines}\n{hint_text}\n\n"
+            f"Output the analysis in the specified JSON format.")}
     ]
-    return messages
 
 
-async def call_llm(messages: list, llm_config: dict) -> str:
-    """
-    调用 LLM API（兼容 OpenAI Chat Completion 格式）。
-
-    参数:
-        messages: [{"role": str, "content": str}]
-        llm_config: {"api_key": str, "endpoint": str, "model": str, ...}
-    返回:
-        LLM 返回的文本内容
-    """
+async def call_llm(messages, llm_config):
     api_key = llm_config.get("api_key", "")
     if not api_key:
-        raise ValueError("LLM 未配置：缺少 api_key")
-
-    endpoint = llm_config.get(
-        "endpoint", "https://api.openai.com/v1/chat/completions"
-    )
+        raise ValueError("LLM not configured: missing api_key")
+    endpoint = llm_config.get("endpoint", "https://api.openai.com/v1/chat/completions")
     model = llm_config.get("model", "gpt-4o-mini")
     max_tokens = llm_config.get("max_tokens", 4096)
-    temperature = llm_config.get("temperature", 0.1)
+    temperature = llm_config.get("temperature", 0.0)
 
-    payload = {
-        "model": model,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    payload = {"model": model, "messages": messages,
+               "max_tokens": max_tokens, "temperature": temperature}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     if _HAS_HTTPX:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(endpoint, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
+            resp = await client.post(endpoint, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
     else:
-        # fallback to urllib (同步，仅用于无法安装 httpx 的环境)
         import urllib.request
         body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(endpoint, data=body, headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=60) as r:
+            data = json.loads(r.read().decode("utf-8"))
 
     if not data.get("choices"):
-        raise ValueError("LLM 返回结果为空")
-
+        raise ValueError("LLM returned empty")
     return data["choices"][0]["message"]["content"] or ""
 
 
-def parse_llm_response(content: str) -> Optional[dict]:
-    """解析 LLM 返回的 JSON，兼容可能的 markdown 包裹。"""
+def parse_llm_response(content):
     if not content:
         return None
-
     text = content.strip()
-
-    # 去掉 markdown 代码块标记 ```json ... ```
-    code_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
-    if code_match:
-        text = code_match.group(1).strip()
-
+    cm = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if cm:
+        text = cm.group(1).strip()
     try:
-        return json.loads(text)
+        result = json.loads(text)
+        return _repair_llm_result(result)
     except json.JSONDecodeError:
-        # 尝试提取最外层 {} 的内容
-        brace_match = re.search(r'\{[\s\S]*\}', text)
-        if brace_match:
+        bm = re.search(r"\{[\s\S]*\}", text)
+        if bm:
             try:
-                return json.loads(brace_match.group(0))
+                result = json.loads(bm.group(0))
+                return _repair_llm_result(result)
             except json.JSONDecodeError:
                 pass
-        raise ValueError(f"无法解析 LLM 返回的 JSON: {text[:200]}")
+        raise ValueError(f"Cannot parse LLM JSON: {text[:200]}")
+
+
+def _repair_llm_result(result: dict) -> dict:
+    """修复 LLM 返回结果中常见的结构问题。"""
+    if not isinstance(result, dict):
+        return result
+
+    # 修复 scenes 字段：LLM 可能返回字符串列表而不是 dict 列表
+    sa = result.get("scenario_analysis")
+    if isinstance(sa, dict):
+        scenes = sa.get("scenes", [])
+        if scenes and isinstance(scenes[0], str):
+            sa["scenes"] = [{"name": s, "motion": "", "force": ""} for s in scenes]
+
+    # 修复 options_analysis: 确保每个选项有 label, statement, correct, reason
+    opts = result.get("options_analysis", [])
+    for i, opt in enumerate(opts):
+        if isinstance(opt, str):
+            # 极端情况：选项是纯字符串
+            import string as _s
+            label = _s.ascii_uppercase[i] if i < 26 else "?"
+            opts[i] = {"label": label, "statement": opt,
+                       "correct": False, "reason": ""}
+        if not isinstance(opt.get("correct"), bool):
+            opt["correct"] = False
+        if not opt.get("reason"):
+            opt["reason"] = ""
+        if not opt.get("statement"):
+            opt["statement"] = ""
+
+    return result
 
 
 # ==================================================================
@@ -501,245 +553,336 @@ def parse_llm_response(content: str) -> Optional[dict]:
 # ==================================================================
 
 class ResultMerger:
-    """合并规则分析结果和 LLM 分析结果。"""
-
     @staticmethod
-    def merge(rule_result: dict, llm_result: Optional[dict],
-              parsed: dict) -> dict:
-        """以规则结果为基线，LLM 结果补充增强。"""
+    def merge(rule_result, llm_result, parsed):
         final = copy.deepcopy(rule_result)
-
         if llm_result:
-            if llm_result.get("topic"):
-                final["topic"] = llm_result["topic"]
-            if llm_result.get("subject"):
-                final["subject"] = llm_result["subject"]
-
-            # 核心概念 — 合并
+            if llm_result.get("topic"): final["topic"] = llm_result["topic"]
+            if llm_result.get("subject"): final["subject"] = llm_result["subject"]
             if llm_result.get("core_concept"):
                 lc = llm_result["core_concept"]
                 rc = final.get("core_concept") or {}
                 merged = copy.deepcopy(rc)
-                if lc.get("name"):
-                    merged["name"] = lc["name"]
-                if lc.get("definition"):
-                    merged["definition"] = lc["definition"]
-                if lc.get("key_formula"):
-                    merged["key_formula"] = lc["key_formula"]
+                for k in ("name", "definition", "key_formula"):
+                    if lc.get(k): merged[k] = lc[k]
                 if lc.get("variables"):
-                    merged.setdefault("variables", {})
-                    merged["variables"].update(lc["variables"])
+                    merged.setdefault("variables", {}).update(lc["variables"])
                 if lc.get("common_misconceptions"):
                     merged["common_misconceptions"] = lc["common_misconceptions"]
                 final["core_concept"] = merged
-
-            # 场景分析
             if llm_result.get("scenario_analysis"):
                 ls = llm_result["scenario_analysis"]
                 rs = final.get("scenario_analysis") or {}
                 merged = copy.deepcopy(rs)
-                if ls.get("context"):
-                    merged["context"] = ls["context"]
-                if ls.get("key_conditions"):
-                    merged["key_conditions"] = ls["key_conditions"]
-                if ls.get("scenes"):
-                    merged["scenes"] = ls["scenes"]
+                if ls.get("context"): merged["context"] = ls["context"]
+                if ls.get("key_conditions"): merged["key_conditions"] = ls["key_conditions"]
+                if ls.get("scenes"): merged["scenes"] = ls["scenes"]
                 final["scenario_analysis"] = merged
-
-            # 选项分析 — 用 LLM 的（包含对错判断）
             if llm_result.get("options_analysis"):
-                llm_opts = llm_result["options_analysis"]
-                # 验证标签一致性
-                parsed_labels = [o["label"] for o in parsed["options"]]
-                llm_labels = [o["label"] for o in llm_opts]
-                if llm_labels == parsed_labels:
-                    final["options_analysis"] = llm_opts
-
-            # 答案
+                lopts = llm_result["options_analysis"]
+                plabels = [o["label"] for o in parsed["options"]]
+                llabels = [o["label"] for o in lopts]
+                if llabels == plabels:
+                    final["options_analysis"] = lopts
             if llm_result.get("answer"):
                 final["answer"] = llm_result["answer"]
-
-        # 补齐字段
         return ResultMerger._ensure_complete(final, parsed)
 
     @staticmethod
-    def _ensure_complete(result: dict, parsed: dict) -> dict:
-        """确保输出结构的完整性。"""
+    def _ensure_complete(result, parsed):
         result.setdefault("topic", "未识别的物理主题")
         result.setdefault("subject", "物理")
         result.setdefault("question_type", "选择题")
-
-        # 核心概念
-        result.setdefault("core_concept", {
-            "name": "待分析",
+        result.setdefault("core_concept", {"name": "待分析",
             "definition": "需进一步分析",
-            "key_formula": "",
-            "variables": {},
-            "common_misconceptions": []
-        })
+            "key_formula": "", "variables": {}, "common_misconceptions": []})
         cc = result["core_concept"]
         cc.setdefault("variables", {})
         cc.setdefault("common_misconceptions", [])
-
-        # 场景分析
         result.setdefault("scenario_analysis", {
-            "context": (parsed["stem"][:80] + '…')
-                       if len(parsed["stem"]) > 80 else parsed["stem"],
-            "key_conditions": "",
-            "scenes": []
-        })
+            "context": (parsed["stem"][:80] + "...") if len(parsed["stem"]) > 80 else parsed["stem"],
+            "key_conditions": "", "scenes": []})
         result["scenario_analysis"].setdefault("scenes", [])
-
-        # 选项分析
-        if (not result.get("options_analysis")
-                or len(result["options_analysis"]) == 0):
+        if not result.get("options_analysis") or len(result["options_analysis"]) == 0:
             result["options_analysis"] = [
                 {"label": o["label"], "statement": o["text"],
                  "correct": False, "reason": "待分析"}
-                for o in parsed["options"]
-            ]
-
+                for o in parsed["options"]]
         result.setdefault("answer", "")
-
         return result
+
+
+# ==================================================================
+#  LLM 验证器
+# ==================================================================
+
+class LLMValidator:
+    @staticmethod
+    def validate(llm_result, parsed, rule_hints=None):
+        issues = []
+        if not llm_result:
+            return {"valid": False, "issues": ["LLM returned empty"], "score": 0.0}
+        answer = llm_result.get("answer", "")
+        valid_labels = [o["label"] for o in parsed.get("options", [])]
+        if answer and answer not in valid_labels:
+            issues.append(f"Answer '{answer}' not in options ({valid_labels})")
+        lopts = llm_result.get("options_analysis", [])
+        if len(lopts) != len(valid_labels):
+            issues.append(f"Option count mismatch: LLM {len(lopts)} vs expected {len(valid_labels)}")
+        else:
+            llabels = [o["label"] for o in lopts]
+            if llabels != valid_labels:
+                issues.append(f"Label mismatch: {llabels} vs {valid_labels}")
+        correct_count = sum(1 for o in lopts if o.get("correct"))
+        if correct_count == 0:
+            issues.append("No correct option marked")
+        elif correct_count > 1:
+            issues.append(f"{correct_count} correct options (should be 1)")
+        if answer and lopts:
+            for o in lopts:
+                if o["label"] == answer and not o.get("correct"):
+                    issues.append(f"Answer {answer} but correct=false")
+                if o.get("correct") and o["label"] != answer:
+                    issues.append(f"{o['label']} correct but answer={answer}")
+        for o in lopts:
+            if o.get("correct") and not o.get("reason", "").strip():
+                issues.append(f"Correct option {o['label']} missing reason")
+        score = max(0.0, 1.0 - len(issues) * 0.25)
+        return {"valid": len(issues) == 0, "issues": issues, "score": round(score, 2)}
+
+
+# ==================================================================
+#  置信度评估器
+# ==================================================================
+
+class ConfidenceScorer:
+    @staticmethod
+    def evaluate(parsed, detected, llm_used=False, llm_valid=False, answer_verified=False):
+        scores = {}
+
+        parser_conf = parsed.get("_parser_confidence", 0.0)
+        opt_count = len(parsed.get("options", []))
+        stem_len = len(parsed.get("stem", ""))
+        parsing_score = parser_conf
+        if opt_count == 4:
+            parsing_score = min(1.0, parsing_score + 0.15)
+        elif opt_count >= 2:
+            parsing_score = min(1.0, parsing_score + 0.05)
+        if stem_len >= 20:
+            parsing_score = min(1.0, parsing_score + 0.10)
+        scores["parsing"] = {"score": round(parsing_score, 3),
+            "method": parsed.get("_parser_used", "unknown"),
+            "options_found": opt_count, "stem_length": stem_len}
+
+        if detected:
+            primary = detected[0]
+            primary_ws = primary.get("weighted_score", 0)
+            dominance = 3.0
+            if len(detected) > 1:
+                second_ws = detected[1].get("weighted_score", 0)
+                if second_ws > 0:
+                    dominance = primary_ws / second_ws
+            raw_conf = min(1.0, primary_ws / 15.0)
+            dom_bonus = 0.15 if dominance >= TOPIC_DOMINANCE_THRESHOLD else (0.05 if dominance >= 1.2 else -0.10)
+            topic_score = min(1.0, max(0.0, raw_conf + dom_bonus))
+            scores["topic_detection"] = {"score": round(topic_score, 3),
+                "primary": detected[0]["topic_id"], "dominance": round(dominance, 2),
+                "alternatives": [d["topic_id"] for d in detected[1:3]]}
+        else:
+            scores["topic_detection"] = {"score": 0.0, "primary": None,
+                                          "dominance": 0.0, "alternatives": []}
+
+        opt_score = 0.90 if (llm_used and llm_valid) else (0.50 if llm_used else 0.30)
+        if opt_count >= 2:
+            opt_score = min(1.0, opt_score + 0.05)
+        scores["options"] = {"score": round(opt_score, 3),
+            "verified_by_llm": llm_used and llm_valid, "count": opt_count}
+
+        ans_score = 0.90 if answer_verified else (0.75 if (llm_used and llm_valid) else (0.40 if llm_used else 0.10))
+        scores["answer"] = {"score": round(ans_score, 3),
+            "method": "llm+rule" if answer_verified else ("llm" if llm_used else "rule_only")}
+
+        weights = {"parsing": 0.25, "topic_detection": 0.15, "options": 0.35, "answer": 0.25}
+        overall = sum(scores[k]["score"] * weights[k] for k in weights)
+        scores["overall"] = round(overall, 3)
+        return scores
+
+
+# ==================================================================
+#  拒绝守卫
+# ==================================================================
+
+class RejectionGuard:
+    @staticmethod
+    def decide(confidence, parsed):
+        warnings = []
+        overall = confidence.get("overall", 0.0)
+        parsing = confidence.get("parsing", {}).get("score", 0.0)
+        topic = confidence.get("topic_detection", {}).get("score", 0.0)
+        answer = confidence.get("answer", {}).get("score", 0.0)
+        opt_count = len(parsed.get("options", []))
+
+        if parsing < 0.4:
+            return {"accepted": False, "status": "rejected",
+                    "warnings": ["无法解析题目格式：未能识别选项标记（A/B/C/D）"],
+                    "rejection_reason": "题目格式无法解析"}
+        if opt_count < 2:
+            return {"accepted": False, "status": "rejected",
+                    "warnings": [f"选项数量不足（{opt_count}个）"],
+                    "rejection_reason": "选项不足"}
+
+        if overall < CONFIDENCE_REJECT_THRESHOLD:
+            warnings.append(f"整体置信度不足（{overall:.2f}），建议人工复核")
+        if topic < 0.3:
+            warnings.append("未能准确匹配物理主题")
+        if answer < 0.3:
+            warnings.append("无法确定正确答案，需要人工判断")
+
+        if warnings:
+            return {"accepted": False, "status": "needs_review",
+                    "warnings": warnings, "rejection_reason": warnings[0]}
+        return {"accepted": True, "status": "auto_resolved",
+                "warnings": [], "rejection_reason": None}
 
 
 # ==================================================================
 #  主入口
 # ==================================================================
 
-def analyze_problem(text: str, llm_config: Optional[dict] = None,
-                    verbose: bool = False) -> dict:
-    """
-    分析一道物理题目（纯规则模式，同步）。
-
-    参数:
-        text: 原始题目文本
-        llm_config: 可选，配置为 {"api_key": str, ...} 时返回 LLM 增强版本
-        verbose: 是否输出详细日志
-    返回:
-        结构化分析结果 dict
-    """
+def analyze_problem(text, llm_config=None, verbose=False):
+    """同步模式分析（纯规则）。"""
     if verbose:
-        print("[Layer1] 开始分析题目…")
-
-    # 第1步：文本解析
+        print("[Layer1] analyze_problem (sync)")
     parsed = TextParser.parse(text)
-    if verbose:
-        print(f"[Layer1] 文本解析完成，题干: {parsed['stem'][:50]}…")
-
     if not parsed["stem"]:
-        raise ValueError("无法解析题目文本，请检查格式")
-
-    # 第2步：规则分析
+        raise ValueError("无法解析题目文本")
     detected = RuleEngine.detect_topics(text)
     primary_id = (detected[0]["topic_id"] if detected else None)
-    if verbose:
-        print(f"[Layer1] 检测到的主题: "
-              f"{[d['topic_id'] for d in detected]}")
-
     topic = PHYSICS_TOPICS.get(primary_id, {})
     rule_result = {
         "topic": topic.get("concept_name", "未识别的物理主题"),
-        "subject": "物理",
-        "question_type": "选择题",
-        "core_concept": (RuleEngine.build_core_concept(primary_id)
-                         if primary_id else {
-                             "name": "待分析", "definition": "需进一步分析",
-                             "key_formula": "", "variables": {},
-                             "common_misconceptions": []
-                         }),
-        "scenario_analysis": (RuleEngine.analyze_scenario(text, primary_id)
-                              if primary_id else {
-                                  "context": (parsed["stem"][:80] + '…'
-                                              if len(parsed["stem"]) > 80
-                                              else parsed["stem"]),
-                                  "key_conditions": "", "scenes": []
-                              }),
+        "subject": "物理", "question_type": "选择题",
+        "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
+        "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
         "options_analysis": RuleEngine.analyze_options(parsed["options"]),
         "answer": RuleEngine.guess_answer_from_markers(parsed["options"])
     }
-
-    # 第3步：合并（此处无 LLM，直接返回规则结果）
-    if verbose:
-        print("[Layer1] 分析完成")
     return ResultMerger.merge(rule_result, None, parsed)
 
 
-async def analyze_problem_async(text: str,
-                                llm_config: Optional[dict] = None,
-                                verbose: bool = False) -> dict:
-    """
-    分析一道物理题目（支持 LLM 增强，异步）。
-
-    参数:
-        text: 原始题目文本
-        llm_config: LLM 配置 {"api_key": str, "endpoint": str, "model": str}
-                    为 None 时等同于同步纯规则模式
-        verbose: 是否输出详细日志
-    返回:
-        结构化分析结果 dict
-    """
+async def analyze_problem_async(text, llm_config=None, verbose=False):
+    """异步模式分析（支持 LLM）。"""
     if verbose:
-        print("[Layer1] 开始分析题目…")
-
+        print("[Layer1] analyze_problem_async")
     parsed = TextParser.parse(text)
-    if verbose:
-        print(f"[Layer1] 文本解析完成，{len(parsed['options'])} 个选项")
-
     if not parsed["stem"]:
-        raise ValueError("无法解析题目文本，请检查格式")
-
+        raise ValueError("无法解析题目文本")
     detected = RuleEngine.detect_topics(text)
     primary_id = (detected[0]["topic_id"] if detected else None)
-
     topic = PHYSICS_TOPICS.get(primary_id, {})
     rule_result = {
         "topic": topic.get("concept_name", "未识别的物理主题"),
-        "subject": "物理",
-        "question_type": "选择题",
-        "core_concept": (RuleEngine.build_core_concept(primary_id)
-                         if primary_id else {
-                             "name": "待分析", "definition": "需进一步分析",
-                             "key_formula": "", "variables": {},
-                             "common_misconceptions": []
-                         }),
-        "scenario_analysis": (RuleEngine.analyze_scenario(text, primary_id)
-                              if primary_id else {
-                                  "context": (parsed["stem"][:80] + '…'
-                                              if len(parsed["stem"]) > 80
-                                              else parsed["stem"]),
-                                  "key_conditions": "", "scenes": []
-                              }),
+        "subject": "物理", "question_type": "选择题",
+        "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
+        "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
         "options_analysis": RuleEngine.analyze_options(parsed["options"]),
         "answer": RuleEngine.guess_answer_from_markers(parsed["options"])
     }
-
-    # LLM 增强
     llm_result = None
     if llm_config and llm_config.get("api_key"):
-        if verbose:
-            print("[Layer1] 调用 LLM 进行深度分析…")
         try:
             hints = [{"topic_id": d["topic_id"]} for d in detected]
             messages = _build_llm_prompt(parsed, hints)
             response = await call_llm(messages, llm_config)
             llm_result = parse_llm_response(response)
-            if verbose:
-                print(f"[Layer1] LLM 分析完成")
         except Exception as e:
             if verbose:
-                print(f"[Layer1] LLM 分析失败: {e}")
-            llm_result = None
+                print(f"[Layer1] LLM error: {e}")
+    return ResultMerger.merge(rule_result, llm_result, parsed)
 
+
+async def analyze_problem_safe(text, llm_config=None, verbose=False):
+    """
+    [推荐] 安全模式分析 —— 带置信度评估和拒绝机制。
+
+    返回结果包含 status 字段：
+        "auto_resolved"  - 自动分析完成，可信任
+        "needs_review"   - 置信度不足，需要人工复核
+        "rejected"       - 无法解析，需要人工处理
+
+    调用方应优先检查 status：
+        if result["status"] != "auto_resolved":
+            # 显示人工审核提示
+    """
+    if verbose:
+        print("[Layer1] analyze_problem_safe")
+
+    # 1. 多策略解析
+    parsed = TextParser.parse(text)
+    if not parsed["stem"]:
+        return {"status": "rejected",
+                "confidence": {"overall": 0.0},
+                "warnings": ["无法解析题目文本，请检查格式"],
+                "rejection_reason": "格式无法解析",
+                "topic": "", "subject": "物理", "question_type": "选择题",
+                "core_concept": {}, "scenario_analysis": {},
+                "options_analysis": [], "answer": ""}
+
+    # 2. 加权主题检测
+    detected = RuleEngine.detect_topics(text)
+    primary_id = (detected[0]["topic_id"] if detected else None)
+
+    # 3. 规则分析
+    topic = PHYSICS_TOPICS.get(primary_id, {})
+    rule_result = {
+        "topic": topic.get("concept_name", "未识别的物理主题"),
+        "subject": "物理", "question_type": "选择题",
+        "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
+        "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
+        "options_analysis": RuleEngine.analyze_options(parsed["options"]),
+        "answer": RuleEngine.guess_answer_from_markers(parsed["options"])
+    }
+
+    # 4. LLM 增强 + 验证
+    llm_result = None
+    llm_valid = False
+    llm_used = False
+
+    if llm_config and llm_config.get("api_key"):
+        llm_used = True
+        try:
+            hints = [{"topic_id": d["topic_id"]} for d in detected]
+            messages = _build_llm_prompt(parsed, hints)
+            response = await call_llm(messages, llm_config)
+            llm_result = parse_llm_response(response)
+            validation = LLMValidator.validate(llm_result, parsed)
+            llm_valid = validation["valid"]
+            if verbose and not llm_valid:
+                print(f"[Layer1] LLM validation: {validation['issues']}")
+        except Exception as e:
+            if verbose:
+                print(f"[Layer1] LLM error: {e}")
+
+    # 5. 合并
     final = ResultMerger.merge(rule_result, llm_result, parsed)
+
+    # 6. 置信度评估
+    answer_verified = llm_valid and llm_result is not None and bool(llm_result.get("answer"))
+    confidence = ConfidenceScorer.evaluate(parsed, detected, llm_used, llm_valid, answer_verified)
+
+    # 7. 拒绝决策
+    guard = RejectionGuard.decide(confidence, parsed)
+
+    final["confidence"] = confidence
+    final["warnings"] = guard["warnings"]
+    final["status"] = guard["status"]
+
+    if verbose:
+        print(f"[Layer1] status={guard['status']}, confidence={confidence['overall']:.3f}")
+
     return final
 
 
-def get_supported_topics() -> list:
-    """获取支持的物理主题列表。"""
-    return [
-        {"id": tid, "name": t["concept_name"],
-         "keywords": t["keywords"]}
-        for tid, t in PHYSICS_TOPICS.items()
-    ]
+def get_supported_topics():
+    return [{"id": tid, "name": t["concept_name"], "keywords": t["keywords"]}
+            for tid, t in PHYSICS_TOPICS.items()]
