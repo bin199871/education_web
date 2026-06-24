@@ -244,7 +244,7 @@ CONFIDENCE_REJECT_THRESHOLD = 0.6
 # ==================================================================
 
 class TextParser:
-    """多策略文本解析器。"""
+    """多策略文本解析器（支持选择题/判断题/填空题/解答题）。"""
 
     PARSER_STRATEGIES = [
         {
@@ -272,6 +272,38 @@ class TextParser:
             "min_matches": 2,
             "base_confidence": 0.50,
         },
+    ]
+
+    # ── 判断题模式 ──
+    JUDGMENT_PATTERNS = [
+        # A.正确 B.错误 / A.对 B.错 / A.√ B.×
+        re.compile(r'([A-Da-d])[.、)） ]\s*((?:正确|错误|对|错|√|×|✓|✗|true|false|T|F))',
+                   re.IGNORECASE),
+        # (正确/错误) / (对/错) 出现在选项中
+    ]
+
+    JUDGMENT_KEYWORDS = [
+        "判断", "是否正确", "是否正确", "说法正确", "说法错误",
+        "对还是错", "true", "false", "正误",
+    ]
+
+    # ── 填空题模式 ──
+    FILL_BLANK_PATTERNS = [
+        re.compile(r'__{3,}'),           # ____ 或 ___
+        re.compile(r'（\s*）'),          # （ ）
+        re.compile(r'\(\s*\)'),          # ( )
+        re.compile(r'\[?\s*_+\s*\]?'),   # [___]
+    ]
+
+    FILL_KEYWORDS = [
+        "填空", "填空中", "在横线上", "在____", "____",
+    ]
+
+    # ── 解答题模式 ──
+    FREE_RESPONSE_KEYWORDS = [
+        "求", "计算", "试求", "试计算", "试分析", "证明", "求证",
+        "推导", "列出", "写出", "说明", "简述", "论述", "分析",
+        "求解", "解答",
     ]
 
     @staticmethod
@@ -311,15 +343,139 @@ class TextParser:
         return stem, options, round(confidence, 2)
 
     @staticmethod
+    def _try_judgment(text):
+        """尝试解析判断题（A.正确 B.错误 / 判断对错 / 对不对等）。"""
+        # 方式1：A.正确 B.错误 格式
+        for pattern in TextParser.JUDGMENT_PATTERNS[:1]:
+            matches = list(pattern.finditer(text))
+            if len(matches) >= 2:
+                pairs = []
+                for m in matches:
+                    label = m.group(1).upper()
+                    value = m.group(2).lower()
+                    pairs.append((label, m.start(), m.end(), value))
+
+                if len(pairs) >= 2:
+                    stem = text[:pairs[0][1]].strip()
+                    stem = re.sub(r'^判断[：:]\s*', '', stem)
+
+                    options = []
+                    for i, (label, ms, me, value) in enumerate(pairs[:2]):
+                        le = me
+                        end = pairs[i + 1][1] if i + 1 < len(pairs) else len(text)
+                        opt_text = text[le:end].strip()
+                        opt_text = re.sub(r'[；;。，,]+$', '', opt_text).strip()
+                        options.append({"label": label, "text": opt_text})
+
+                    conf = 0.75
+                    if len(stem) >= 20:
+                        conf += 0.10
+                    return stem, options, round(min(conf, 1.0), 2)
+
+        # 方式2：无选项的判断题（检测关键词）
+        text_clean = text.strip()
+        has_keyword = any(kw in text_clean for kw in TextParser.JUDGMENT_KEYWORDS)
+        if has_keyword and len(text_clean) < 80:
+            # 短文本 + 判断关键词 → 判断题
+            stem = re.sub(r'^判断[：:]\s*', '', text_clean)
+            stem = re.sub(r'[。！？]+$', '', stem)
+            return stem, [], 0.55
+
+        return None
+
+    @staticmethod
+    def _try_fill_blank(text):
+        """尝试解析填空题（检测 ____ 或 填空 关键词）。"""
+        for pattern in TextParser.FILL_BLANK_PATTERNS:
+            if pattern.search(text):
+                stem = text.strip()
+                # 检测有几个空
+                blanks = [m for m in pattern.finditer(text)]
+                options = []
+                for i in range(len(blanks)):
+                    label = chr(65 + i)  # A, B, C...
+                    options.append({"label": label, "text": ""})
+                conf = 0.60 + min(len(blanks) * 0.05, 0.20)
+                if any(kw in text for kw in TextParser.FILL_KEYWORDS):
+                    conf += 0.10
+                return stem, options, round(min(conf, 1.0), 2)
+        return None
+
+    @staticmethod
+    def _try_free_response(text):
+        """尝试解析解答题（检测 求/计算/证明 等关键词）。"""
+        text_clean = text.strip()
+        # 必须有足够的字数（解答题一般较长）
+        if len(text_clean) < 15:
+            return None
+        # 检测关键词
+        has_keyword = any(kw in text_clean for kw in TextParser.FREE_RESPONSE_KEYWORDS)
+        # 检测是否包含物理量纲或公式
+        has_condition = bool(re.search(
+            r'\d+\.?\d*\s*(m/s|kg|N|J|W|V|A|Ω|m|g|km|h|s)', text_clean))
+        if has_keyword or has_condition:
+            return text_clean, [], 0.55
+        return None
+
+    @staticmethod
+    def detect_question_type(parsed: dict, raw_text: str = "") -> str:
+        """
+        根据解析结果自动检测题型。
+        返回: "选择题" | "判断题" | "填空题" | "解答题"
+        """
+        options = parsed.get("options", [])
+        opt_count = len(options)
+        parser_used = parsed.get("_parser_used", "none")
+
+        # 如果标准解析器检测到4个选项，肯定是选择题
+        if opt_count == 4 and parser_used != "none":
+            return "选择题"
+
+        # 如果有2个选项，检查是否是判断题
+        if opt_count == 2:
+            opt_texts = [o.get("text", "").lower() for o in options]
+            judgment_markers = {"正确", "错误", "对", "错", "√", "×", "✓", "✗",
+                                "true", "false", "t", "f", "是", "否"}
+            match_count = sum(1 for t in opt_texts if t in judgment_markers or
+                             any(m in t for m in judgment_markers))
+            if match_count >= 1:
+                return "判断题"
+
+        # 检查是否有填空标记
+        if opt_count == 0:
+            for pattern in TextParser.FILL_BLANK_PATTERNS:
+                if pattern.search(raw_text or parsed.get("stem", "")):
+                    return "填空题"
+
+        # 检查是否有解答题关键词
+        if opt_count == 0:
+            text = raw_text or parsed.get("stem", "")
+            has_kw = any(kw in text for kw in TextParser.FREE_RESPONSE_KEYWORDS)
+            has_condition = bool(re.search(
+                r'\d+\.?\d*\s*(m/s|kg|N|J|W|V|A|Ω|m|g|km|h|s)', text))
+            if has_kw or has_condition:
+                return "解答题"
+
+        # 2个选项但未匹配到判断题标记 → 仍然是选择题（如 A.方案一 B.方案二）
+        if opt_count >= 2:
+            return "选择题"
+
+        # 以上都不是
+        return "选择题"
+
+    @staticmethod
     def parse(raw_text):
         if not raw_text or not isinstance(raw_text, str):
             return {"stem": "", "options": [],
-                    "_parser_used": "none", "_parser_confidence": 0.0}
+                    "_parser_used": "none", "_parser_confidence": 0.0,
+                    "_question_type": "选择题"}
         text = raw_text.strip()
         if not text:
             return {"stem": "", "options": [],
-                    "_parser_used": "none", "_parser_confidence": 0.0}
+                    "_parser_used": "none", "_parser_confidence": 0.0,
+                    "_question_type": "选择题"}
 
+        # 1. 先尝试标准选择题策略
         best = None
         best_conf = 0.0
         best_name = "none"
@@ -334,11 +490,41 @@ class TextParser:
                     best_name = strategy["name"]
 
         if best:
-            return {"stem": best[0], "options": best[1],
-                    "_parser_used": best_name, "_parser_confidence": best_conf}
+            parsed = {"stem": best[0], "options": best[1],
+                      "_parser_used": best_name, "_parser_confidence": best_conf}
+            parsed["_question_type"] = TextParser.detect_question_type(parsed, text)
+            return parsed
+
+        # 2. 尝试判断题
+        j_result = TextParser._try_judgment(text)
+        if j_result:
+            stem, opts, conf = j_result
+            parsed = {"stem": stem, "options": opts,
+                      "_parser_used": "judgment", "_parser_confidence": conf}
+            parsed["_question_type"] = "判断题"
+            return parsed
+
+        # 3. 尝试填空题
+        f_result = TextParser._try_fill_blank(text)
+        if f_result:
+            stem, opts, conf = f_result
+            parsed = {"stem": stem, "options": opts,
+                      "_parser_used": "fill_blank", "_parser_confidence": conf}
+            parsed["_question_type"] = "填空题"
+            return parsed
+
+        # 4. 尝试解答题
+        fr_result = TextParser._try_free_response(text)
+        if fr_result:
+            stem, opts, conf = fr_result
+            parsed = {"stem": stem, "options": opts,
+                      "_parser_used": "free_response", "_parser_confidence": conf}
+            parsed["_question_type"] = "解答题"
+            return parsed
 
         return {"stem": text, "options": [],
-                "_parser_used": "none", "_parser_confidence": 0.0}
+                "_parser_used": "none", "_parser_confidence": 0.0,
+                "_question_type": "选择题"}
 
     @staticmethod
     def extract_conditions(text):
@@ -426,6 +612,8 @@ except ImportError:
 
 
 def _build_llm_prompt(parsed, topic_hints):
+    """根据题型构建动态 LLM Prompt。"""
+    question_type = parsed.get("_question_type", "选择题")
     option_lines = "\n".join(f"{o['label']}. {o['text']}" for o in parsed["options"])
     hint_text = ""
     if topic_hints:
@@ -437,19 +625,105 @@ def _build_llm_prompt(parsed, topic_hints):
         if names:
             hint_text = f'（提示：该题可能涉及 "{", ".join(names)}"）'
 
-    output_example = json.dumps({
-        "topic": "知识点名称",
-        "subject": "物理",
-        "question_type": "选择题",
-        "core_concept": {"name": "", "definition": "", "key_formula": "",
-                        "variables": {}, "common_misconceptions": []},
-        "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
-        "options_analysis": [{"label": "A", "statement": "", "correct": False, "reason": ""}],
-        "answer": ""
-    }, ensure_ascii=False, indent=2)
+    # ---- 根据不同题型构建不同的 output_example ----
+    if question_type == "判断题":
+        output_example = json.dumps({
+            "topic": "知识点名称",
+            "subject": "物理",
+            "question_type": "判断题",
+            "core_concept": {"name": "", "definition": "", "key_formula": "",
+                            "variables": {}, "common_misconceptions": []},
+            "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
+            "judgment": {"statement": "原判断句", "is_correct": False,
+                         "explanation": "解析说明"},
+            "answer": "正确/错误"
+        }, ensure_ascii=False, indent=2)
 
-    return [
-        {"role": "system", "content": (
+        system_prompt = (
+            "You are a physics problem analyzer. Output ONLY valid JSON.\n"
+            "Rules:\n"
+            "1. Determine if the given statement is correct or incorrect\n"
+            '2. Set judgment.is_correct to true/false accordingly\n'
+            "3. Provide a clear physics-based explanation\n"
+            '4. Set answer to "正确" or "错误"\n'
+            "5. No markdown formatting, pure JSON only\n"
+            f"Format:\n{output_example}")
+        user_prompt = (
+            f"Analyze this physics true/false question:\n\n"
+            f"【Stem】\n{parsed['stem']}\n\n"
+            f"{hint_text}\n\n"
+            f"Output the analysis in the specified JSON format.")
+
+    elif question_type == "填空题":
+        output_example = json.dumps({
+            "topic": "知识点名称",
+            "subject": "物理",
+            "question_type": "填空题",
+            "core_concept": {"name": "", "definition": "", "key_formula": "",
+                            "variables": {}, "common_misconceptions": []},
+            "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
+            "fill_blanks": [
+                {"position": 1, "answer": "答案内容", "explanation": "解析说明"}
+            ],
+            "answer": "答案内容"
+        }, ensure_ascii=False, indent=2)
+
+        system_prompt = (
+            "You are a physics problem analyzer. Output ONLY valid JSON.\n"
+            "Rules:\n"
+            "1. Fill in each blank with the correct physics answer\n"
+            "2. Provide explanation for each answer\n"
+            "3. Include units where applicable\n"
+            "4. No markdown formatting, pure JSON only\n"
+            f"Format:\n{output_example}")
+        user_prompt = (
+            f"Analyze this physics fill-in-the-blank question:\n\n"
+            f"【Stem】\n{parsed['stem']}\n\n"
+            f"{hint_text}\n\n"
+            f"Output the analysis in the specified JSON format.")
+
+    elif question_type == "解答题":
+        output_example = json.dumps({
+            "topic": "知识点名称",
+            "subject": "物理",
+            "question_type": "解答题",
+            "core_concept": {"name": "", "definition": "", "key_formula": "",
+                            "variables": {}, "common_misconceptions": []},
+            "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
+            "solution_steps": [
+                {"step": 1, "description": "解题步骤", "formula": "", "result": ""}
+            ],
+            "answer": "最终答案"
+        }, ensure_ascii=False, indent=2)
+
+        system_prompt = (
+            "You are a physics problem analyzer. Output ONLY valid JSON.\n"
+            "Rules:\n"
+            "1. Break down the solution into clear steps\n"
+            "2. Show formulas used at each step\n"
+            "3. Provide the final answer with units\n"
+            "4. No markdown formatting, pure JSON only\n"
+            f"Format:\n{output_example}")
+        user_prompt = (
+            f"Analyze this physics free-response question:\n\n"
+            f"【Question】\n{parsed['stem']}\n\n"
+            f"{hint_text}\n\n"
+            f"Output the solution steps in the specified JSON format.")
+
+    else:
+        # 选择题（默认）
+        output_example = json.dumps({
+            "topic": "知识点名称",
+            "subject": "物理",
+            "question_type": "选择题",
+            "core_concept": {"name": "", "definition": "", "key_formula": "",
+                            "variables": {}, "common_misconceptions": []},
+            "scenario_analysis": {"context": "", "key_conditions": "", "scenes": []},
+            "options_analysis": [{"label": "A", "statement": "", "correct": False, "reason": ""}],
+            "answer": ""
+        }, ensure_ascii=False, indent=2)
+
+        system_prompt = (
             "You are a physics problem analyzer. Output ONLY valid JSON.\n"
             "Rules:\n"
             "1. Mark exactly ONE option as correct (correct: true)\n"
@@ -457,12 +731,16 @@ def _build_llm_prompt(parsed, topic_hints):
             "3. Each option must have a reason field with physics basis\n"
             "4. If unsure, set answer to empty string\n"
             "5. No markdown formatting, pure JSON only\n"
-            f"Format:\n{output_example}")},
-        {"role": "user", "content": (
+            f"Format:\n{output_example}")
+        user_prompt = (
             f"Analyze this physics multiple-choice question:\n\n"
             f"【Stem】\n{parsed['stem']}\n\n"
             f"【Options】\n{option_lines}\n{hint_text}\n\n"
-            f"Output the analysis in the specified JSON format.")}
+            f"Output the analysis in the specified JSON format.")
+
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
     ]
 
 
@@ -529,11 +807,13 @@ def _repair_llm_result(result: dict) -> dict:
         if scenes and isinstance(scenes[0], str):
             sa["scenes"] = [{"name": s, "motion": "", "force": ""} for s in scenes]
 
+    # 修复 question_type
+    result.setdefault("question_type", "选择题")
+
     # 修复 options_analysis: 确保每个选项有 label, statement, correct, reason
     opts = result.get("options_analysis", [])
     for i, opt in enumerate(opts):
         if isinstance(opt, str):
-            # 极端情况：选项是纯字符串
             import string as _s
             label = _s.ascii_uppercase[i] if i < 26 else "?"
             opts[i] = {"label": label, "statement": opt,
@@ -590,9 +870,12 @@ class ResultMerger:
 
     @staticmethod
     def _ensure_complete(result, parsed):
+        qtype = parsed.get("_question_type", result.get("question_type", "选择题"))
         result.setdefault("topic", "未识别的物理主题")
         result.setdefault("subject", "物理")
-        result.setdefault("question_type", "选择题")
+        # 保留自动检测的题型，不硬编码
+        if "question_type" not in result or result["question_type"] == "选择题":
+            result["question_type"] = qtype
         result.setdefault("core_concept", {"name": "待分析",
             "definition": "需进一步分析",
             "key_formula": "", "variables": {}, "common_misconceptions": []})
@@ -603,11 +886,15 @@ class ResultMerger:
             "context": (parsed["stem"][:80] + "...") if len(parsed["stem"]) > 80 else parsed["stem"],
             "key_conditions": "", "scenes": []})
         result["scenario_analysis"].setdefault("scenes", [])
+        # 非选择题型不强制要求 options_analysis
         if not result.get("options_analysis") or len(result["options_analysis"]) == 0:
-            result["options_analysis"] = [
-                {"label": o["label"], "statement": o["text"],
-                 "correct": False, "reason": "待分析"}
-                for o in parsed["options"]]
+            if qtype in ("选择题", "判断题"):
+                result["options_analysis"] = [
+                    {"label": o["label"], "statement": o["text"],
+                     "correct": False, "reason": "待分析"}
+                    for o in parsed["options"]]
+            else:
+                result["options_analysis"] = []
         result.setdefault("answer", "")
         return result
 
@@ -622,6 +909,18 @@ class LLMValidator:
         issues = []
         if not llm_result:
             return {"valid": False, "issues": ["LLM returned empty"], "score": 0.0}
+
+        qtype = parsed.get("_question_type", "选择题")
+
+        # 非选择题：放宽验证
+        if qtype in ("解答题", "填空题"):
+            # 只需检查 topic 存在
+            if not llm_result.get("topic"):
+                issues.append("Missing topic")
+            return {"valid": len(issues) == 0, "issues": issues,
+                    "score": max(0.0, 1.0 - len(issues) * 0.25)}
+
+        # 选择题/判断题：严格验证选项
         answer = llm_result.get("answer", "")
         valid_labels = [o["label"] for o in parsed.get("options", [])]
         if answer and answer not in valid_labels:
@@ -659,6 +958,7 @@ class ConfidenceScorer:
     @staticmethod
     def evaluate(parsed, detected, llm_used=False, llm_valid=False, answer_verified=False):
         scores = {}
+        qtype = parsed.get("_question_type", "选择题")
 
         parser_conf = parsed.get("_parser_confidence", 0.0)
         opt_count = len(parsed.get("options", []))
@@ -668,6 +968,9 @@ class ConfidenceScorer:
             parsing_score = min(1.0, parsing_score + 0.15)
         elif opt_count >= 2:
             parsing_score = min(1.0, parsing_score + 0.05)
+        elif qtype in ("填空题", "解答题"):
+            # 填空题/解答题不需要选项，给予基础分
+            parsing_score = max(parsing_score, 0.45)
         if stem_len >= 20:
             parsing_score = min(1.0, parsing_score + 0.10)
         scores["parsing"] = {"score": round(parsing_score, 3),
@@ -692,17 +995,27 @@ class ConfidenceScorer:
             scores["topic_detection"] = {"score": 0.0, "primary": None,
                                           "dominance": 0.0, "alternatives": []}
 
-        opt_score = 0.90 if (llm_used and llm_valid) else (0.50 if llm_used else 0.30)
-        if opt_count >= 2:
-            opt_score = min(1.0, opt_score + 0.05)
-        scores["options"] = {"score": round(opt_score, 3),
-            "verified_by_llm": llm_used and llm_valid, "count": opt_count}
+        if qtype in ("解答题", "填空题"):
+            # 非选择题型：选项维度权重降低
+            opt_score = 0.60 if (llm_used and llm_valid) else (0.40 if llm_used else 0.30)
+            scores["options"] = {"score": round(opt_score, 3),
+                "verified_by_llm": llm_used and llm_valid, "count": opt_count}
+        else:
+            opt_score = 0.90 if (llm_used and llm_valid) else (0.50 if llm_used else 0.30)
+            if opt_count >= 2:
+                opt_score = min(1.0, opt_score + 0.05)
+            scores["options"] = {"score": round(opt_score, 3),
+                "verified_by_llm": llm_used and llm_valid, "count": opt_count}
 
         ans_score = 0.90 if answer_verified else (0.75 if (llm_used and llm_valid) else (0.40 if llm_used else 0.10))
         scores["answer"] = {"score": round(ans_score, 3),
             "method": "llm+rule" if answer_verified else ("llm" if llm_used else "rule_only")}
 
-        weights = {"parsing": 0.25, "topic_detection": 0.15, "options": 0.35, "answer": 0.25}
+        # 非选择题：降低 options 权重，提高 topic 权重
+        if qtype in ("解答题", "填空题"):
+            weights = {"parsing": 0.25, "topic_detection": 0.30, "options": 0.20, "answer": 0.25}
+        else:
+            weights = {"parsing": 0.25, "topic_detection": 0.15, "options": 0.35, "answer": 0.25}
         overall = sum(scores[k]["score"] * weights[k] for k in weights)
         scores["overall"] = round(overall, 3)
         return scores
@@ -721,15 +1034,23 @@ class RejectionGuard:
         topic = confidence.get("topic_detection", {}).get("score", 0.0)
         answer = confidence.get("answer", {}).get("score", 0.0)
         opt_count = len(parsed.get("options", []))
+        qtype = parsed.get("_question_type", "选择题")
 
-        if parsing < 0.4:
-            return {"accepted": False, "status": "rejected",
-                    "warnings": ["无法解析题目格式：未能识别选项标记（A/B/C/D）"],
-                    "rejection_reason": "题目格式无法解析"}
-        if opt_count < 2:
-            return {"accepted": False, "status": "rejected",
-                    "warnings": [f"选项数量不足（{opt_count}个）"],
-                    "rejection_reason": "选项不足"}
+        # 解析置信度检查（不同题型不同阈值）
+        if qtype in ("解答题", "填空题"):
+            # 解答题/填空题允许无选项，降低解析门槛
+            if parsing < 0.3:
+                warnings.append(f"题目解析置信度偏低（{parsing:.2f}）")
+        else:
+            # 选择题/判断题需要选项
+            if parsing < 0.4:
+                return {"accepted": False, "status": "rejected",
+                        "warnings": ["无法解析题目格式：未能识别选项标记（A/B/C/D）"],
+                        "rejection_reason": "题目格式无法解析"}
+            if opt_count < 2:
+                return {"accepted": False, "status": "rejected",
+                        "warnings": [f"选项数量不足（{opt_count}个）"],
+                        "rejection_reason": "选项不足"}
 
         if overall < CONFIDENCE_REJECT_THRESHOLD:
             warnings.append(f"整体置信度不足（{overall:.2f}），建议人工复核")
@@ -756,12 +1077,13 @@ def analyze_problem(text, llm_config=None, verbose=False):
     parsed = TextParser.parse(text)
     if not parsed["stem"]:
         raise ValueError("无法解析题目文本")
+    qtype = parsed.get("_question_type", "选择题")
     detected = RuleEngine.detect_topics(text)
     primary_id = (detected[0]["topic_id"] if detected else None)
     topic = PHYSICS_TOPICS.get(primary_id, {})
     rule_result = {
         "topic": topic.get("concept_name", "未识别的物理主题"),
-        "subject": "物理", "question_type": "选择题",
+        "subject": "物理", "question_type": qtype,
         "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
         "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
         "options_analysis": RuleEngine.analyze_options(parsed["options"]),
@@ -777,12 +1099,13 @@ async def analyze_problem_async(text, llm_config=None, verbose=False):
     parsed = TextParser.parse(text)
     if not parsed["stem"]:
         raise ValueError("无法解析题目文本")
+    qtype = parsed.get("_question_type", "选择题")
     detected = RuleEngine.detect_topics(text)
     primary_id = (detected[0]["topic_id"] if detected else None)
     topic = PHYSICS_TOPICS.get(primary_id, {})
     rule_result = {
         "topic": topic.get("concept_name", "未识别的物理主题"),
-        "subject": "物理", "question_type": "选择题",
+        "subject": "物理", "question_type": qtype,
         "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
         "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
         "options_analysis": RuleEngine.analyze_options(parsed["options"]),
@@ -819,12 +1142,13 @@ async def analyze_problem_safe(text, llm_config=None, verbose=False):
 
     # 1. 多策略解析
     parsed = TextParser.parse(text)
+    qtype = parsed.get("_question_type", "选择题")
     if not parsed["stem"]:
         return {"status": "rejected",
                 "confidence": {"overall": 0.0},
                 "warnings": ["无法解析题目文本，请检查格式"],
                 "rejection_reason": "格式无法解析",
-                "topic": "", "subject": "物理", "question_type": "选择题",
+                "topic": "", "subject": "物理", "question_type": qtype,
                 "core_concept": {}, "scenario_analysis": {},
                 "options_analysis": [], "answer": ""}
 
@@ -836,7 +1160,7 @@ async def analyze_problem_safe(text, llm_config=None, verbose=False):
     topic = PHYSICS_TOPICS.get(primary_id, {})
     rule_result = {
         "topic": topic.get("concept_name", "未识别的物理主题"),
-        "subject": "物理", "question_type": "选择题",
+        "subject": "物理", "question_type": qtype,
         "core_concept": RuleEngine.build_core_concept(primary_id) if primary_id else {},
         "scenario_analysis": RuleEngine.analyze_scenario(text, primary_id) if primary_id else {},
         "options_analysis": RuleEngine.analyze_options(parsed["options"]),
