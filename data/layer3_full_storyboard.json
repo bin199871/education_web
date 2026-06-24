@@ -1,0 +1,874 @@
+{
+  "meta": {
+    "topic": "质量与重力的区别",
+    "total_duration_sec": 205,
+    "total_frames": 12300,
+    "fps": 60,
+    "visual_theme_name": "宇宙探索",
+    "layers": [
+      "layer1",
+      "layer2",
+      "layer3"
+    ]
+  },
+  "acts": [
+    {
+      "act_number": 1,
+      "act_name": "知识点讲解",
+      "core_task": "用直观对比讲透题目涉及的核心概念",
+      "suggested_duration": "60-80秒",
+      "total_duration_sec": 80,
+      "total_frames": 4800,
+      "segments": [
+        {
+          "id": "1-1",
+          "name": "开场引入",
+          "scene_type": "introduction",
+          "duration_sec": 10,
+          "start_frame": 0,
+          "end_frame": 600,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 80,
+              "rotationSpeed": 0.001,
+              "twinkleIntensity": 0.5
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawCube",
+            "drawTypewriterText",
+            "drawPopupLabel"
+          ],
+          "params": {
+            "title": "质量与重力的区别",
+            "subtitle": "物理 · 核心概念",
+            "cube_label": "🔬",
+            "concept_labels": [
+              {
+                "text": "质量",
+                "color": "#4CAF50"
+              },
+              {
+                "text": "重力",
+                "color": "#FF9800"
+              }
+            ]
+          },
+          "storyboard": [
+            {
+              "time": "0s-3s",
+              "visual": "深空背景，中央浮现一个银色🔬（代表研究对象），表面标有「质量与重力的区别」字样",
+              "animation": "立方体从屏幕外旋转飞入，停在中央，轻微上下浮动（周期2秒）"
+            },
+            {
+              "time": "3s-6s",
+              "visual": "立方体两侧弹出标题框：质量 & 重力",
+              "animation": "两个词从立方体左右两侧「生长」出来，带有发光描边效果，颜色#4CAF50和#FF9800"
+            },
+            {
+              "time": "6s-10s",
+              "visual": "画面底部出现副标题：「物理 · 核心概念」",
+              "animation": "副标题以打字机效果逐字打出，背景星星缓慢旋转"
+            }
+          ],
+          "narration": "同学们好。今天我们从一个核心概念开始——质量与重力的区别。要理解它，关键要分清这两个概念：质量和重力。"
+        },
+        {
+          "id": "1-2",
+          "name": "场景A展示",
+          "scene_type": "scene_demo_a",
+          "duration_sec": 20,
+          "start_frame": 601,
+          "end_frame": 1801,
+          "background": {
+            "component": "drawEarthBackground",
+            "params": {
+              "clouds": [
+                {
+                  "x": 100,
+                  "y": 60,
+                  "w": 80,
+                  "h": 25,
+                  "speed": 0.3
+                },
+                {
+                  "x": 400,
+                  "y": 80,
+                  "w": 100,
+                  "h": 30,
+                  "speed": 0.2
+                },
+                {
+                  "x": 650,
+                  "y": 50,
+                  "w": 70,
+                  "h": 20,
+                  "speed": 0.35
+                }
+              ]
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawBalance",
+            "drawSpringScale",
+            "drawPopupLabel"
+          ],
+          "params": {
+            "scene_label": "地球表面",
+            "balance_label": "⚖️ 质量 = 1.0 kg（不变）",
+            "spring_label": "📏 重力 = 9.8 N（地球）",
+            "balance_weight": 2.0,
+            "spring_weight": 5.0,
+            "g_value": "9.8 m/s²"
+          },
+          "storyboard": [
+            {
+              "time": "10s-14s",
+              "visual": "背景切换为地球表面，一个物体落在画面中央的地面上",
+              "animation": "场景用淡入淡出切换（1秒过渡），物体落下时有轻微「落地」弹跳效果"
+            },
+            {
+              "time": "14s-19s",
+              "visual": "物体左上方出现一架天平，托盘上放着物体，指针指向平衡位置",
+              "animation": "天平从左侧滑入，指针轻微晃动后稳定，刻度数字用绿色高亮"
+            },
+            {
+              "time": "19s-24s",
+              "visual": "物体右上方出现一个弹簧秤，钩住物体，指针指向测量值",
+              "animation": "弹簧秤从右侧滑入，秤钩伸出钩住物体，指针旋转到对应位置，数字用橙色高亮"
+            },
+            {
+              "time": "24s-27s",
+              "visual": "两个仪器闪烁，旁边出现标签：⚖️ 质量 = 1.0 kg（不变） | 📏 重力 = 9.8 N（地球）",
+              "animation": "标签从仪器上方「弹出」，带有放大缩小的弹性动画（easeOutBack）"
+            },
+            {
+              "time": "27s-30s",
+              "visual": "画面底部显示标注：地球表面 g = 9.8 m/s²",
+              "animation": "标注文字从底部缓缓上浮"
+            }
+          ],
+          "narration": "现在看地球表面。用天平称，质量不变。用弹簧秤称，重力读数如标签所示。记住这个数据，我们马上和另一场景对比。"
+        },
+        {
+          "id": "1-3",
+          "name": "场景B展示",
+          "scene_type": "scene_demo_b",
+          "duration_sec": 20,
+          "start_frame": 1802,
+          "end_frame": 3002,
+          "background": {
+            "component": "drawMoonBackground",
+            "params": {
+              "craters": [
+                {
+                  "x": 200,
+                  "y": 350,
+                  "rx": 30,
+                  "ry": 15,
+                  "depth": 0.5
+                },
+                {
+                  "x": 500,
+                  "y": 320,
+                  "rx": 20,
+                  "ry": 10,
+                  "depth": 0.3
+                },
+                {
+                  "x": 700,
+                  "y": 370,
+                  "rx": 40,
+                  "ry": 18,
+                  "depth": 0.4
+                },
+                {
+                  "x": 350,
+                  "y": 380,
+                  "rx": 15,
+                  "ry": 8,
+                  "depth": 0.6
+                }
+              ],
+              "earthPosition": {
+                "x": 120,
+                "y": 60
+              }
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawBalance",
+            "drawSpringScale",
+            "drawPopupLabel"
+          ],
+          "params": {
+            "scene_label": "月球表面",
+            "balance_label": "⚖️ 质量 = 1.0 kg（不变！）",
+            "spring_label": "📏 重力（月球表面）",
+            "balance_weight": 2.0,
+            "spring_weight": 1.0,
+            "g_value": "1.6 m/s²"
+          },
+          "storyboard": [
+            {
+              "time": "30s-34s",
+              "visual": "背景切换为月球表面，物体位置不变但环境改变",
+              "animation": "场景切换用淡入淡出（1秒过渡），物体颜色微调以匹配新环境光照"
+            },
+            {
+              "time": "34s-39s",
+              "visual": "天平再次出现，指针依然稳定指向同一位置（读数不变）",
+              "animation": "天平滑入，指针快速稳定，与之前读数完全一致，强调「不变」"
+            },
+            {
+              "time": "39s-44s",
+              "visual": "弹簧秤再次出现，指针快速回摆，停在新的位置",
+              "animation": "弹簧秤滑入，指针先抖动一下，再快速旋转到新位置（比场景A更快的动画，体现变化）"
+            },
+            {
+              "time": "44s-47s",
+              "visual": "两个仪器标签更新：⚖️ 质量 = 1.0 kg（不变！）（绿色加粗）| 📏 重力（月球表面）（橙色闪烁）",
+              "animation": "标签切换时，质量标签用绿色光晕强调「不变」，重力标签用橙色闪烁强调「变化」"
+            },
+            {
+              "time": "47s-50s",
+              "visual": "底部显示标注：月球表面 g = 1.6 m/s²",
+              "animation": "标注文字从底部上浮，与场景A形成对比"
+            }
+          ],
+          "narration": "再看月球表面。神奇的事情发生了——天平读数仍然不变！但弹簧秤的指针却指向了1.6 m/s²。为什么？因为月球表面的引力不同。天平测质量，弹簧秤测重力，这就是区别。"
+        },
+        {
+          "id": "1-4",
+          "name": "对比结论",
+          "scene_type": "comparison",
+          "duration_sec": 20,
+          "start_frame": 3003,
+          "end_frame": 4203,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 60,
+              "rotationSpeed": 0.0005,
+              "twinkleIntensity": 0.2
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawSplitScreenDivider",
+            "drawPopupLabel",
+            "drawTypewriterText"
+          ],
+          "params": {
+            "conclusions": [
+              {
+                "text": "✅ 质量 —— 不随位置改变",
+                "color": "#4CAF50"
+              },
+              {
+                "text": "✅ 重力 —— 随引力变化",
+                "color": "#FF9800"
+              }
+            ],
+            "formula": "G = mg",
+            "final_line": "接下来，我们看一道真题如何运用这两个概念"
+          },
+          "storyboard": [
+            {
+              "time": "50s-55s",
+              "visual": "画面一分为二，左半是场景A，右半是场景B，同时显示测量结果对比",
+              "animation": "用滑动分割效果将画面切分（1.5秒），两个场景同屏显示，指针同步跳动"
+            },
+            {
+              "time": "55s-01:02",
+              "visual": "中央出现核心结论（逐行弹出）：✅ 质量 —— 不随位置改变 | ✅ 重力 —— 随引力变化",
+              "animation": "结论文字从中央依次弹出，带有放大和光效，指针同步跳动强化对比"
+            },
+            {
+              "time": "01:02-01:06",
+              "visual": "核心公式 G = mg 在画面中央放大显示",
+              "animation": "公式从中央放大弹出（弹性效果），变量用不同颜色高亮"
+            },
+            {
+              "time": "01:06-01:10",
+              "visual": "底部出现过渡语：「接下来，我们看一道真题如何运用这两个概念」",
+              "animation": "文字从底部上浮，画面渐暗准备过渡"
+            }
+          ],
+          "narration": "结论来了：✅ 质量 —— 不随位置改变，✅ 重力 —— 随引力变化。核心公式 G = mg。接下来，我们看一道真题如何运用这两个概念。"
+        },
+        {
+          "id": "1-5",
+          "name": "过渡到题目",
+          "scene_type": "transition",
+          "duration_sec": 10,
+          "start_frame": 4204,
+          "end_frame": 4804,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 100,
+              "rotationSpeed": 0.0005,
+              "twinkleIntensity": 0.3
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawTypewriterText",
+            "drawMeteor"
+          ],
+          "params": {
+            "transition_text": "接下来，让我们用这道题检验所学",
+            "meteor_count": 1
+          },
+          "storyboard": [
+            {
+              "time": "01:10-01:15",
+              "visual": "深空背景淡入，星光闪烁，一颗流星划过天际",
+              "animation": "背景淡入（1秒），流星从右上向左下划过（拖尾效果），星星闪烁频率降低"
+            },
+            {
+              "time": "01:15-01:20",
+              "visual": "画面中央出现过渡文字：「接下来，让我们用这道题检验所学」",
+              "animation": "文字以打字机效果逐字打出，随后画面渐暗"
+            }
+          ],
+          "narration": "接下来，让我们用这道题检验所学。"
+        }
+      ]
+    },
+    {
+      "act_number": 2,
+      "act_name": "题目套入与解题",
+      "core_task": "将知识点代入题目情境，动态分析选项",
+      "suggested_duration": "70-90秒",
+      "total_duration_sec": 75,
+      "total_frames": 4500,
+      "segments": [
+        {
+          "id": "2-1",
+          "name": "题目展示",
+          "scene_type": "problem_display",
+          "duration_sec": 10,
+          "start_frame": 0,
+          "end_frame": 600,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 20,
+              "rotationSpeed": 0,
+              "twinkleIntensity": 0
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawTypewriterText",
+            "drawPopupLabel"
+          ],
+          "params": {
+            "stem": "已知月球表面自由落体加速度约为地球表面自由落体加速度的1/6。\n下列说法正确的是( )\n\nA. 在环月飞行时，样品所受合力为零\nB. 若将样品放置在月球正面，它…",
+            "options": [
+              {
+                "label": "A",
+                "text": "在环月飞行时，样品所受合力为零"
+              },
+              {
+                "label": "B",
+                "text": "若将样品放置在月球正面，它对月球表面压力等于零"
+              },
+              {
+                "label": "C",
+                "text": "样品在不同过程中受到的引力不同，所以质量也不同"
+              },
+              {
+                "label": "D",
+                "text": "样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小"
+              }
+            ]
+          },
+          "storyboard": [
+            {
+              "time": "0s-3s",
+              "visual": "深空背景淡出，画面淡入一张试卷纸铺满中央，左上角浮现红色印章「📝 真题演练」",
+              "animation": "试卷从中央缩放出现（0.8→1.0，弹性效果），纸张有轻微纹理和折痕"
+            },
+            {
+              "time": "3s-7s",
+              "visual": "试卷顶部出现题目：已知月球表面自由落体加速度约为地球表面自由落体加速度的1/6。\n下列说法正确的是( )\n\nA. 在环月飞行时，样品所受合…",
+              "animation": "题目以打字机效果逐字出现，文字用深蓝色加粗"
+            },
+            {
+              "time": "7s-10s",
+              "visual": "选项显示：A. 在环月飞行时，样品所受合力为零…  B. 若将样品放置在月球正面，它对月球表面压力…",
+              "animation": "选项从上方依次落下，每个选项间隔0.3秒"
+            }
+          ],
+          "narration": "来看一道真题。题目是这样的：已知月球表面自由落体加速度约为地球表面自由落体加速度的1/6。\n下列说法正确的是( )\n\nA. 在环… 请思考正确选项。"
+        },
+        {
+          "id": "2-2",
+          "name": "场景与受力分析",
+          "scene_type": "scene_analysis",
+          "duration_sec": 20,
+          "start_frame": 601,
+          "end_frame": 1801,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 20,
+              "rotationSpeed": 0,
+              "twinkleIntensity": 0
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawCube",
+            "drawPopupLabel",
+            "drawTypewriterText"
+          ],
+          "params": {
+            "scene_label": "受力分析",
+            "concept_note": "质量与重力的区别",
+            "scenes": [
+              "地球表面",
+              "月球表面",
+              "环绕飞行"
+            ]
+          },
+          "storyboard": [
+            {
+              "time": "10s-15s",
+              "visual": "题目下方展开受力分析示意图，展示地球表面、月球表面、环绕飞行",
+              "animation": "示意图从左到右逐步绘制（手绘效果，用时2秒），场景标签依次弹出"
+            },
+            {
+              "time": "15s-20s",
+              "visual": "物体受力分析：各场景中的受力情况标注",
+              "animation": "受力箭头从物体中心向外「生长」，每个力用不同颜色区分"
+            },
+            {
+              "time": "20s-25s",
+              "visual": "将质量与重力的区别应用到各场景中，高亮对应关系",
+              "animation": "概念标签从右侧滑入，与场景建立连线（虚线动画绘制）"
+            },
+            {
+              "time": "25s-30s",
+              "visual": "整合所有信息，展示完整的物理图景",
+              "animation": "所有标注汇聚整合，整体闪烁一次后稳定显示"
+            }
+          ],
+          "narration": "题目涉及地球表面、月球表面、环绕飞行。我们逐一分析每个场景中的物理情况，运用质量与重力的区别进行受力分析。注意每个场景中力的差异。"
+        },
+        {
+          "id": "2-3",
+          "name": "选项逐个击破",
+          "scene_type": "option_analysis",
+          "duration_sec": 30,
+          "start_frame": 1802,
+          "end_frame": 3602,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 20,
+              "rotationSpeed": 0,
+              "twinkleIntensity": 0
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawPopupLabel",
+            "drawTypewriterText"
+          ],
+          "params": {
+            "options": [
+              {
+                "label": "A",
+                "statement": "在环月飞行时，样品所受合力为零",
+                "correct": false,
+                "reason": "需 LLM 或人工判断"
+              },
+              {
+                "label": "B",
+                "statement": "若将样品放置在月球正面，它对月球表面压力等于零",
+                "correct": false,
+                "reason": "需 LLM 或人工判断"
+              },
+              {
+                "label": "C",
+                "statement": "样品在不同过程中受到的引力不同，所以质量也不同",
+                "correct": false,
+                "reason": "需 LLM 或人工判断"
+              },
+              {
+                "label": "D",
+                "statement": "样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小",
+                "correct": false,
+                "reason": "需 LLM 或人工判断"
+              }
+            ]
+          },
+          "storyboard": [
+            {
+              "time": "30s-37s",
+              "visual": "选项 A：「在环月飞行时，样品所受合力为零」→ ❌",
+              "animation": "选项框从左侧滑入（弹性效果），判定标记❌从右侧飞入并放大，下方展开解析文字：需 LLM 或人工判断…"
+            },
+            {
+              "time": "37s-45s",
+              "visual": "选项 B：「若将样品放置在月球正面，它对月球表面压力等于零」→ ❌",
+              "animation": "选项框从左侧滑入（弹性效果），判定标记❌从右侧飞入并放大，下方展开解析文字：需 LLM 或人工判断…"
+            },
+            {
+              "time": "45s-52s",
+              "visual": "选项 C：「样品在不同过程中受到的引力不同，所以质量也不同」→ ❌",
+              "animation": "选项框从左侧滑入（弹性效果），判定标记❌从右侧飞入并放大，下方展开解析文字：需 LLM 或人工判断…"
+            },
+            {
+              "time": "52s-01:00",
+              "visual": "选项 D：「样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小」→ ❌",
+              "animation": "选项框从左侧滑入（弹性效果），判定标记❌从右侧飞入并放大，下方展开解析文字：需 LLM 或人工判断…"
+            }
+          ],
+          "narration": "逐一分析选项。A选项错误：需 LLM 或人工判断。B选项错误：需 LLM 或人工判断。C选项错误：需 LLM 或人工判断。D选项错误：需 LLM 或人工判断。"
+        },
+        {
+          "id": "2-4",
+          "name": "答案确认",
+          "scene_type": "answer_confirmation",
+          "duration_sec": 10,
+          "start_frame": 3603,
+          "end_frame": 4203,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 20,
+              "rotationSpeed": 0,
+              "twinkleIntensity": 0
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawPopupLabel",
+            "drawTypewriterText"
+          ],
+          "params": {
+            "answer": "",
+            "correct_option": null,
+            "formula": "G = mg"
+          },
+          "storyboard": [
+            {
+              "time": "01:00-01:04",
+              "visual": "正确答案「」在画面中央放大显示，绿色高亮",
+              "animation": "答案从中央弹出（缩放0→1.2→1，弹性效果），周围出现闪光特效"
+            },
+            {
+              "time": "01:04-01:07",
+              "visual": "答案下方展开详细解析，结合G = mg说明",
+              "animation": "解析框从答案下方伸展出现，文字逐行显示"
+            },
+            {
+              "time": "01:07-01:10",
+              "visual": "其他选项的错误原因简要列出，形成对比",
+              "animation": "错误选项列表从底部淡入，每个带❌标记，颜色偏灰"
+            }
+          ],
+          "narration": "因此正确答案是。应用公式G = mg可以得出正确结论。"
+        },
+        {
+          "id": "2-5",
+          "name": "总结公式",
+          "scene_type": "formula_summary",
+          "duration_sec": 5,
+          "start_frame": 4204,
+          "end_frame": 4504,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 100,
+              "rotationSpeed": 0.0005,
+              "twinkleIntensity": 0.3
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawPopupLabel"
+          ],
+          "params": {
+            "formula": "G = mg",
+            "concept": "质量与重力的区别"
+          },
+          "storyboard": [
+            {
+              "time": "01:10-01:13",
+              "visual": "核心公式 G = mg 在画面中央放大显示，金色边框高亮",
+              "animation": "公式从底部放大弹出（弹性效果，0.8秒），每个变量用不同颜色标注"
+            },
+            {
+              "time": "01:13-01:15",
+              "visual": "下方标注：「质量与重力的区别」",
+              "animation": "标注从公式下方展开，与公式形成完整构图后定格"
+            }
+          ],
+          "narration": "总结核心公式：G = mg。记住质量与重力的区别的关键。"
+        }
+      ]
+    },
+    {
+      "act_number": 3,
+      "act_name": "总结升华",
+      "core_task": "提炼核心结论，知识迁移扩展",
+      "suggested_duration": "50-60秒",
+      "total_duration_sec": 50,
+      "total_frames": 3000,
+      "segments": [
+        {
+          "id": "3-1",
+          "name": "核心概念回顾",
+          "scene_type": "concept_review",
+          "duration_sec": 10,
+          "start_frame": 0,
+          "end_frame": 600,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 120,
+              "rotationSpeed": 0.0008,
+              "twinkleIntensity": 0.6
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawPopupLabel",
+            "drawTypewriterText",
+            "drawStarField"
+          ],
+          "params": {
+            "title": "⚖️ 质量与重力的区别",
+            "definition": "质量是物体固有属性，不随位置改变；重力是万有引力的表现，G = mg，随 g 值改变",
+            "formula": "G = mg"
+          },
+          "storyboard": [
+            {
+              "time": "0s-3s",
+              "visual": "深空背景（紫蓝色星云），中央出现发光天平意象，左托盘放「质量」，右托盘放「重力」",
+              "animation": "星云从画面两侧蔓延填充（1.5秒），天平从中央旋转放大出现（弹性效果）"
+            },
+            {
+              "time": "3s-7s",
+              "visual": "天平下方出现大标题：「⚖️ 质量与重力的区别」",
+              "animation": "标题从天平下方弹出（缩放效果），带有金色光晕"
+            },
+            {
+              "time": "7s-10s",
+              "visual": "副标题显示核心定义：质量是物体固有属性，不随位置改变；重力是万有引力的表现，G = mg，随 g 值…",
+              "animation": "定义文字从底部上浮，逐行显示，字体稍小颜色柔和"
+            }
+          ],
+          "narration": "回顾核心概念：⚖️ 质量与重力的区别。质量是物体固有属性，不随位置改变；重力是万有引力的表现，G = mg，随 g 值改变。公式G = mg。"
+        },
+        {
+          "id": "3-2",
+          "name": "知识迁移",
+          "scene_type": "knowledge_transfer",
+          "duration_sec": 20,
+          "start_frame": 601,
+          "end_frame": 1801,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 120,
+              "rotationSpeed": 0.0008,
+              "twinkleIntensity": 0.6
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawTypewriterText",
+            "drawPopupLabel",
+            "drawStarField"
+          ],
+          "params": {
+            "title": "知识拓展",
+            "misconceptions": [
+              "质量会随重力变化（质量是固有属性，不随位置改变）",
+              "失重状态下物体质量为零（失重时重力表现为零，但质量不变）",
+              "质量和重量是同一概念（质量是标量，重量是力）"
+            ],
+            "extension": "掌握了质量与重力的区别，就能理解更多物理现象"
+          },
+          "storyboard": [
+            {
+              "time": "10s-15s",
+              "visual": "画面淡入三个关键词框并排：「🔬 科学」「🌍 生活」「🚀 探索」，每个框下方有简短解释",
+              "animation": "三个框从画面底部依次上浮（间隔0.4秒），半透明玻璃效果，彩色边框"
+            },
+            {
+              "time": "15s-22s",
+              "visual": "常见误解辨析：质量会随重力变化（质量是固有属性，不随位置改变）、失重状态下物体质量为零（失重时重力表现为零，但质量不变）",
+              "animation": "每个误解以卡片形式依次弹出，然后以「纠正」动画翻转显示正确理解"
+            },
+            {
+              "time": "22s-26s",
+              "visual": "知识扩展：掌握了质量与重力的区别，就能理解更多物理现象",
+              "animation": "背景出现宇宙星云旋转，扩展文字从中央缓缓浮现"
+            },
+            {
+              "time": "26s-30s",
+              "visual": "画面出现三个星球并排（地球、月球、火星），展示不同环境下的物理规律",
+              "animation": "三个星球从中央散开（弹性效果），每个星球下方标注关键数值"
+            }
+          ],
+          "narration": "知识拓展时间。首先纠正几个常见误解：质量会随重力变化（质量是固有属性，不随位置改变），失重状态下物体质量为零（失重时重力表现为零，但质量不变）。掌握了质量与重力的区别，就能理解更多物理现象。物理规律在宇宙中处处适用。"
+        },
+        {
+          "id": "3-3",
+          "name": "升华总结",
+          "scene_type": "final_elevation",
+          "duration_sec": 20,
+          "start_frame": 1802,
+          "end_frame": 3002,
+          "background": {
+            "component": "drawStarField",
+            "params": {
+              "stars": 120,
+              "rotationSpeed": 0.0008,
+              "twinkleIntensity": 0.6
+            }
+          },
+          "color_scheme": {
+            "primary": "#0D47A1",
+            "secondary": "#42A5F5",
+            "accent": "#FF9800",
+            "success": "#4CAF50",
+            "text": "#FFFFFF",
+            "highlight": "#FFD54F"
+          },
+          "components": [
+            "drawTypewriterText",
+            "drawStarField",
+            "drawPopupLabel",
+            "drawMeteor"
+          ],
+          "params": {
+            "title": "质量与重力的区别",
+            "subtitle": "—— 一堂关于宇宙的物理课",
+            "closing_words": "宇宙的答案，藏在你对世界的每一次提问中",
+            "show_meteor": true
+          },
+          "storyboard": [
+            {
+              "time": "30s-35s",
+              "visual": "深空背景（绚丽星云，紫蓝金色调），画面中央出现一个发光的「∞」符号，缓缓旋转",
+              "animation": "「∞」符号从中央旋转放大出现（1.5秒），光带带有粒子拖尾效果，星云加速旋转"
+            },
+            {
+              "time": "35s-40s",
+              "visual": "画面底部出现一句话总结（大号字体，金色发光）：「宇宙的答案，藏在你对世界的每一次提问中」",
+              "animation": "文字从底部缓缓上浮（1.5秒），金色光晕脉动（周期2秒）"
+            },
+            {
+              "time": "40s-45s",
+              "visual": "最终标题出现（金色大字）：「质量与重力的区别」—— 一堂关于宇宙的物理课",
+              "animation": "标题从中央放大弹出（弹性效果），金色光晕持续脉动"
+            },
+            {
+              "time": "45s-50s",
+              "visual": "最终字幕：「📚 感谢观看 · 探索永不止步」，然后画面缓缓淡出到黑屏",
+              "animation": "最终字幕从底部上浮（1秒），星光粒子飘落，随后整体淡出（2秒）"
+            }
+          ],
+          "narration": "最后，让我们站在更高的视角回望。宇宙的答案，藏在你对世界的每一次提问中记住质量与重力的区别，这不仅是一道物理题，更是一种认识世界的思维方式。"
+        }
+      ]
+    }
+  ]
+}

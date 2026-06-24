@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Layer 1 · 题目分析 Agent 演示</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .app {
+      max-width: 960px;
+      width: 100%;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle {
+      color: #718096;
+      font-size: 14px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+    }
+    .panel h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel h2 .badge {
+      font-size: 11px;
+      background: #edf2f7;
+      color: #4a5568;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 400;
+    }
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 240px;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66,153,225,0.15);
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: #4299e1;
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: #3182ce; }
+    .btn-secondary {
+      background: #edf2f7;
+      color: #4a5568;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+    .btn-danger {
+      background: #fc8181;
+      color: #fff;
+    }
+    .btn-danger:hover:not(:disabled) { background: #f56565; }
+    /* 开关样式 */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      font-size: 13px;
+      color: #4a5568;
+    }
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      background: #cbd5e0;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle.active {
+      background: #4299e1;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle.active::after {
+      transform: translateX(18px);
+    }
+    .toggle-label {
+      cursor: pointer;
+      user-select: none;
+    }
+    .llm-hint {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-left: 4px;
+    }
+
+    .output-area {
+      margin-top: 12px;
+    }
+    pre {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+      font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+    }
+    .status {
+      font-size: 13px;
+      color: #718096;
+      margin-top: 8px;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .status.running { color: #4299e1; }
+    .status.done { color: #38a169; }
+    .status.error { color: #e53e3e; }
+    .badge-count {
+      font-size: 12px;
+      background: #ebf8ff;
+      color: #2b6cb0;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .sample-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .sample-btn {
+      font-size: 12px;
+      padding: 4px 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 14px;
+      background: #fff;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sample-btn:hover {
+      border-color: #4299e1;
+      color: #4299e1;
+      background: #ebf8ff;
+    }
+    .topic-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin: 2px;
+      background: #e9d8fd;
+      color: #553c9a;
+    }
+    .mode-badge {
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .mode-badge.rule {
+      background: #edf2f7;
+      color: #4a5568;
+    }
+    .mode-badge.llm {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+    .server-status {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .server-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .server-dot.online { background: #48bb78; }
+    .server-dot.offline { background: #fc8181; }
+    .server-dot.checking { background: #ecc94b; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    /* Layer 2 幕结构卡片 */
+    .act-card {
+      background: #1e293b;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      border: 1px solid #334155;
+    }
+    .act-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid #334155;
+    }
+    .act-header .act-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .act-header .act-title { font-weight: 600; font-size: 15px; flex:1; }
+    .act-header .act-meta { font-size: 12px; color: #94a3b8; }
+    .segment-list { padding: 8px 12px; }
+    .seg-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 8px; border-radius: 6px;
+      font-size: 13px; transition: background 0.15s;
+    }
+    .seg-item:hover { background: #334155; }
+    .seg-id {
+      width: 32px; height: 20px;
+      background: #334155; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: #94a3b8;
+      flex-shrink: 0;
+    }
+    .seg-time {
+      font-size: 12px; color: #64748b; width: 60px; flex-shrink: 0;
+      font-family: monospace;
+    }
+    .seg-name { flex: 1; color: #e2e8f0; }
+    .seg-comps {
+      font-size: 11px; color: #64748b;
+      max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .timeline-bar {
+      display: flex; height: 6px; border-radius: 3px; overflow: hidden;
+      margin: 4px 12px 8px;
+    }
+    .timeline-seg {
+      height: 100%; position: relative;
+      transition: width 0.3s;
+    }
+    .timeline-seg:hover { opacity: 0.8; }
+    .timeline-label {
+      font-size: 10px; color: #64748b; text-align: center;
+      margin-top: 2px;
+    }
+    .theme-info {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      padding: 10px 16px;
+      font-size: 12px; color: #94a3b8;
+      border-top: 1px solid #334155;
+    }
+    .theme-info span { display: flex; align-items: center; gap: 4px; }
+    .color-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>
+    🧪 Layer 1 → Layer 2 · 题目分析 + 幕结构
+    <span class="server-status" id="serverStatus">
+      <span class="server-dot checking" id="serverDot"></span>
+      <span id="serverLabel">连接中…</span>
+    </span>
+  </h1>
+  <div class="subtitle">
+    <span>Layer 1: 题目分析 → Layer 2: 幕结构匹配 · 规则解析 + LLM 增强</span>
+    <span style="font-size:12px;color:#a0aec0">
+      内置主题：<span class="badge-count" id="topicCount">0</span>
+    </span>
+  </div>
+
+  <div class="layout">
+    <!-- 左侧：输入面板 -->
+    <div class="panel">
+      <h2>📝 题目输入</h2>
+
+      <div class="sample-btns">
+        <button class="sample-btn" data-sample="chang-e">嫦娥六号 · 质量与重力</button>
+        <button class="sample-btn" data-sample="newton">牛顿定律 · 受力分析</button>
+        <button class="sample-btn" data-sample="circular">匀速圆周 · 向心力</button>
+      </div>
+
+      <textarea id="inputText" placeholder="在此粘贴物理选择题文本…&#10;&#10;例如：&#10;已知月球表面自由落体加速度约为地球表面的1/6。&#10;下列说法正确的是( )&#10;A. 在环月飞行时，样品所受合力为零&#10;B. 若将样品放置在月球正面，它对月球表面压力等于零&#10;C. 样品在不同过程中受到的引力不同，所以质量也不同&#10;D. 样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小">已知月球表面自由落体加速度约为地球表面自由落体加速度的1/6。
+
+下列说法正确的是( )
+
+A. 在环月飞行时，样品所受合力为零
+B. 若将样品放置在月球正面，它对月球表面压力等于零
+
+C. 样品在不同过程中受到的引力不同，所以质量也不同
+D. 样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小</textarea>
+
+      <div class="toolbar">
+        <button class="btn-primary" id="btnAnalyze">🔍 分析题目</button>
+        <button class="btn-secondary" id="btnClear">🗑️ 清空</button>
+
+        <!-- LLM 开关 -->
+        <div class="toggle-wrap">
+          <span class="toggle-label" id="toggleLabel">🧠 LLM 增强</span>
+          <div class="toggle" id="toggleLLM" role="switch" tabindex="0"></div>
+          <span class="llm-hint" id="llmHint">后端配置</span>
+        </div>
+      </div>
+
+      <div class="status" id="status">就绪</div>
+    </div>
+
+    <!-- 右侧：输出面板 -->
+    <div class="panel">
+      <h2>
+        📋 分析结果
+        <span style="margin-left:auto;font-size:13px;color:#718096">
+          模式：<span id="modeLabel" class="mode-badge rule">纯规则</span>
+        </span>
+      </h2>
+      <div style="margin-bottom:8px;font-size:13px;color:#718096">
+        检测到的主题：
+        <span id="detectedTopics">—</span>
+      </div>
+      <div class="layer-tabs" style="margin-bottom:8px;display:flex;gap:0;border-bottom:2px solid #e2e8f0">
+        <button class="tab-btn active" data-layer="1" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid #4299e1;margin-bottom:-2px;color:#4299e1;font-weight:600">📋 Layer 1 分析结果</button>
+        <button class="tab-btn" data-layer="2" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">🎬 Layer 2 幕结构</button>
+        <button class="tab-btn" data-layer="3" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096">📝 Layer 3 分镜文稿</button>
+        <button class="tab-btn" data-layer="4" style="padding:6px 16px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#718096" onclick="window.open('/','_blank')">🎬 Layer 4 动画 ▶</button>
+      </div>
+      <div class="output-area">
+        <pre id="output">点击"分析题目"查看结果…</pre>
+        <div id="layer2Output" style="display:none;max-height:500px;overflow-y:auto;padding:4px"></div>
+        <div id="layer3Output" style="display:none;max-height:500px;overflow-y:auto;padding:4px;background:#2d3748;border-radius:8px;color:#e2e8f0;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:inherit"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // DOM
+  var inputText      = document.getElementById('inputText');
+  var output         = document.getElementById('output');
+  var status         = document.getElementById('status');
+  var btnAnalyze     = document.getElementById('btnAnalyze');
+  var btnClear       = document.getElementById('btnClear');
+  var topicSpan      = document.getElementById('detectedTopics');
+  var modeLabel      = document.getElementById('modeLabel');
+  var toggleLLM      = document.getElementById('toggleLLM');
+  var toggleLabel    = document.getElementById('toggleLabel');
+  var llmHint        = document.getElementById('llmHint');
+  var topicCount     = document.getElementById('topicCount');
+  var serverDot      = document.getElementById('serverDot');
+  var serverLabel    = document.getElementById('serverLabel');
+
+  var llmEnabled = false;
+  var serverOnline = false;
+  var analyzing = false;
+  var activeLayer = 1;   // 1 = Layer 1 JSON, 2 = Layer 2 幕结构
+  var cachedData = null; // { layer1, layer2, meta }
+
+  // ─── 后端 API 地址 ───
+  var API_BASE = window.location.origin;
+
+  // ─── 检查服务器状态 ───
+  function checkServer() {
+    serverDot.className = 'server-dot checking';
+    serverLabel.textContent = '连接中…';
+
+    fetch(API_BASE + '/api/status')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        serverOnline = true;
+        serverDot.className = 'server-dot online';
+        serverLabel.textContent = '服务在线';
+
+        // 显示 LLM 配置状态
+        if (data.llm && data.llm.configured) {
+          llmHint.textContent = '🧠 ' + data.llm.model;
+          llmHint.style.color = '#38a169';
+        } else {
+          llmHint.textContent = '仅规则（.env 未配置 API Key）';
+          llmHint.style.color = '#a0aec0';
+        }
+
+        // 如果服务器返回了主题列表，更新计数
+        if (data.topics) {
+          topicCount.textContent = data.topics.length;
+        }
+
+        // 启用按钮
+        btnAnalyze.disabled = false;
+      })
+      .catch(function () {
+        serverOnline = false;
+        serverDot.className = 'server-dot offline';
+        serverLabel.textContent = '服务离线';
+        llmHint.textContent = '后端未启动';
+        llmHint.style.color = '#e53e3e';
+        btnAnalyze.disabled = false;
+        topicCount.textContent = '?';
+      });
+  }
+
+  // ─── LLM 开关 ───
+  toggleLLM.addEventListener('click', function () {
+    llmEnabled = !llmEnabled;
+    toggleLLM.classList.toggle('active', llmEnabled);
+    updateModeLabel();
+  });
+
+  function updateModeLabel() {
+    if (llmEnabled) {
+      modeLabel.textContent = '规则 + LLM';
+      modeLabel.className = 'mode-badge llm';
+    } else {
+      modeLabel.textContent = '纯规则';
+      modeLabel.className = 'mode-badge rule';
+    }
+  }
+
+  // ─── Layer 标签切换 ───
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var layer2Div = document.getElementById('layer2Output');
+  var layer3Div = document.getElementById('layer3Output');
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var layer = parseInt(this.getAttribute('data-layer'));
+      if (layer === activeLayer) return;
+      activeLayer = layer;
+
+      tabBtns.forEach(function (b) {
+        var isAct = parseInt(b.getAttribute('data-layer')) === layer;
+        b.style.color = isAct ? '#4299e1' : '#718096';
+        b.style.fontWeight = isAct ? '600' : '400';
+        b.style.borderBottomColor = isAct ? '#4299e1' : 'transparent';
+      });
+
+      if (cachedData) {
+        showLayerOutput(layer);
+      }
+    });
+  });
+
+  function showLayerOutput(layer) {
+    if (!cachedData) return;
+    var outputEl = document.getElementById('output');
+    var layer2El = document.getElementById('layer2Output');
+    var layer3El = document.getElementById('layer3Output');
+    outputEl.style.display = 'none';
+    layer2El.style.display = 'none';
+    layer3El.style.display = 'none';
+    if (layer === 1) {
+      outputEl.style.display = '';
+      if (cachedData.layer1) {
+        outputEl.textContent = JSON.stringify(cachedData.layer1, null, 2);
+      }
+    } else if (layer === 2) {
+      layer2El.style.display = '';
+      if (cachedData.layer2) {
+        renderActPlan(cachedData.layer2);
+      }
+    } else if (layer === 3) {
+      layer3El.style.display = '';
+      if (cachedData.layer3_text) {
+        layer3El.textContent = cachedData.layer3_text;
+      } else if (cachedData.layer3 && cachedData.layer3_text === undefined) {
+        layer3El.textContent = JSON.stringify(cachedData.layer3, null, 2);
+      }
+    }
+  }
+
+  // ─── 示例题目 ───
+  var SAMPLES = {
+    'chang-e': '2024年5月，嫦娥六号探测器发射成功，开启了人类首次从月球背面采样返回之旅。\n将采得的样品带回地球，飞行器需经过月面起飞、环月飞行、月地转移等过程。\n已知月球表面自由落体加速度约为地球表面自由落体加速度的1/6。\n\n下列说法正确的是( )\n\nA. 在环月飞行时，样品所受合力为零\nB. 若将样品放置在月球正面，它对月球表面压力等于零\nC. 样品在不同过程中受到的引力不同，所以质量也不同\nD. 样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小',
+
+    'newton': '如图所示，一个质量为 2kg 的物体放在水平地面上，物体与地面间的动摩擦因数为 0.2。\n现用大小为 10N 的水平拉力 F 拉物体，使物体由静止开始运动。\n（取 g = 10m/s²）\n\n下列说法正确的是（ ）\n\nA. 物体的加速度大小为 3m/s²\nB. 物体所受摩擦力大小为 4N\nC. 物体所受摩擦力方向与拉力方向相同\nD. 若撤去拉力 F，物体将立即停止运动',
+
+    'circular': '如图所示，一个质量为 m 的小球用长为 L 的细线悬挂在 O 点，在水平面内做匀速圆周运动，\n细线与竖直方向的夹角为 θ。\n\n下列说法正确的是（ ）\n\nA. 小球所受合力为零\nB. 细线的拉力大小为 mg·cosθ\nC. 小球的向心力由重力和拉力的合力提供\nD. 小球的线速度大小为 √(gL·sinθ·tanθ)'
+  };
+
+  document.querySelectorAll('.sample-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = this.getAttribute('data-sample');
+      if (SAMPLES[key]) {
+        inputText.value = SAMPLES[key];
+        status.textContent = '已加载示例：「' + this.textContent.trim() + '」';
+        status.className = 'status';
+      }
+    });
+  });
+
+  // ─── 清空 ───
+  btnClear.addEventListener('click', function () {
+    inputText.value = '';
+    output.textContent = '等待输入…';
+    status.textContent = '已清空';
+    status.className = 'status';
+    topicSpan.textContent = '—';
+  });
+
+  // ─── 渲染 Layer 2 幕结构 ───
+  function renderActPlan(plan) {
+    if (!plan || !plan.acts) {
+      document.getElementById('layer2Output').innerHTML =
+        '<div style="color:#94a3b8;padding:20px;text-align:center">暂无幕结构数据</div>';
+      return;
+    }
+
+    var actColors = ['#60a5fa', '#f59e0b', '#a78bfa'];
+    var actBgColors = ['#1e3a5f', '#5c3d0e', '#3b2f6b'];
+    var html = '';
+
+    // 元信息
+    html += '<div style="background:#1e293b;border-radius:10px;padding:12px 16px;margin-bottom:12px;border:1px solid #334155">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+      '<span style="font-weight:600;font-size:14px">' + plan.meta.topic + '</span>' +
+      '<span style="font-size:12px;color:#94a3b8">🎨 ' + plan.meta.visual_theme_name + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:16px;margin-top:6px;font-size:12px;color:#94a3b8">' +
+      '<span>⏱ ' + plan.meta.total_duration_sec + '秒</span>' +
+      '<span>🎞 ' + plan.meta.total_frames + '帧</span>' +
+      '<span>📐 ' + plan.meta.key_formula + '</span>' +
+      '</div>';
+
+    // 色块
+    var colors = plan.meta.color_scheme || {};
+    html += '<div style="display:flex;gap:6px;margin-top:8px;align-items:center">';
+    html += '<span style="font-size:11px;color:#64748b">配色:</span>';
+    var colorKeys = ['primary', 'secondary', 'accent', 'success', 'highlight'];
+    colorKeys.forEach(function (k) {
+      if (colors[k]) {
+        html += '<span class="color-dot" style="background:' + colors[k] + '"></span>';
+      }
+    });
+    html += '</div></div>';
+
+    // 每幕
+    for (var ai = 0; ai < plan.acts.length; ai++) {
+      var act = plan.acts[ai];
+      var ac = actColors[ai % actColors.length];
+      var bc = actBgColors[ai % actBgColors.length];
+
+      html += '<div class="act-card">';
+      html += '<div class="act-header">';
+      html += '<div class="act-num" style="background:' + bc + ';color:' + ac + '">' +
+              act.act_number + '</div>';
+      html += '<div class="act-title" style="color:#e2e8f0">' + act.act_name + '</div>';
+      html += '<div class="act-meta">' + act.total_duration_sec + '秒 · ' +
+              act.segments.length + '片段</div>';
+      html += '</div>';
+
+      // 时间轴
+      html += '<div class="timeline-bar">';
+      for (var si = 0; si < act.segments.length; si++) {
+        var seg = act.segments[si];
+        var pct = (seg.duration_sec / act.total_duration_sec * 100).toFixed(1);
+        html += '<div class="timeline-seg" style="width:' + pct + '%;background:' + ac +
+                ';opacity:' + (0.4 + 0.6 * (si + 1) / act.segments.length).toFixed(2) + '"></div>';
+      }
+      html += '</div>';
+
+      // 片段列表
+      html += '<div class="segment-list">';
+      for (var si = 0; si < act.segments.length; si++) {
+        var seg = act.segments[si];
+        var comps = (seg.components || []).join(', ');
+        html += '<div class="seg-item">';
+        html += '<span class="seg-id">' + seg.id + '</span>';
+        html += '<span class="seg-time">' + formatTime(seg.start_frame) +
+                '-' + formatTime(seg.end_frame) + '</span>';
+        html += '<span class="seg-name">' + seg.name + '</span>';
+        html += '<span class="seg-comps" title="' + comps + '">' +
+                (comps ? comps : '') + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // 主题信息
+      var bgName = act.segments.length > 0 ? act.segments[0].background : '';
+      html += '<div class="theme-info">';
+      html += '<span>🎬 场景: ' + bgName + '</span>';
+      if (act.segments[0] && act.segments[0].scene_type) {
+        html += '<span>📌 类型: ' + act.segments[0].scene_type + '</span>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+    }
+
+    document.getElementById('layer2Output').innerHTML = html;
+  }
+
+  function formatTime(frame) {
+    var secs = Math.floor(frame / 60);
+    var min = Math.floor(secs / 60);
+    var s = secs % 60;
+    return min > 0 ? min + 'm' + s + 's' : s + 's';
+  }
+
+  // ─── 分析 ───
+  function runAnalysis() {
+    if (analyzing) return;
+
+    var text = inputText.value.trim();
+    if (!text) {
+      status.textContent = '⚠️ 请先输入题目文本';
+      status.className = 'status error';
+      return;
+    }
+
+    analyzing = true;
+    btnAnalyze.disabled = true;
+    btnAnalyze.textContent = '⏳ 分析中…';
+
+    status.textContent = '⏳ 正在请求后端分析…';
+    status.className = 'status running';
+    output.textContent = '等待分析结果…';
+
+    var startTime = Date.now();
+
+    fetch(API_BASE + '/api/analyze/storyboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        useLLM: llmEnabled
+      })
+    })
+    .then(function (resp) {
+      if (!resp.ok) {
+        return resp.json().then(function (errData) {
+          throw new Error(errData.error || '服务器错误 ' + resp.status);
+        });
+      }
+      return resp.json();
+    })
+    .then(function (result) {
+      if (!result.success) {
+        throw new Error(result.error || '分析失败');
+      }
+
+      var meta = result.meta;
+      var layer1Data = result.data.layer1;
+      var layer2Data = result.data.layer2;
+      var layer3Data = result.data.layer3;
+      var layer3Text = result.data.layer3_text;
+      var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      // 缓存数据
+      cachedData = {
+        layer1: layer1Data,
+        layer2: layer2Data,
+        layer3: layer3Data,
+        layer3_text: layer3Text,
+        meta: meta
+      };
+
+      // 显示检测到的主题
+      if (meta && meta.detectedTopics && meta.detectedTopics.length > 0) {
+        topicSpan.innerHTML = meta.detectedTopics.map(function (t) {
+          return '<span class="topic-tag">' + t.name + '</span>';
+        }).join('');
+      } else {
+        topicSpan.textContent = '未匹配到内置主题';
+      }
+
+      // 切换到当前活动标签
+      showLayerOutput(activeLayer);
+
+      // 状态栏
+      var mode = meta && meta.llmUsed ? '🧠 LLM增强' : '⚙️ 纯规则';
+      var parts = [
+        '✅ 分析完成（' + elapsed + 's）',
+        mode,
+        '主题：' + layer1Data.topic,
+        '选项：' + (layer1Data.options_analysis ? layer1Data.options_analysis.length : 0) + '个',
+        '幕结构：' + (layer2Data && layer2Data.acts ? layer2Data.acts.length + '幕' : '—'),
+        '分镜：' + (layer3Data && layer3Data.acts ? (function(){var c=0;layer3Data.acts.forEach(function(a){a.segments.forEach(function(s){c+=s.storyboard.length})});return c+'条'})() : '—'),
+        '答案：' + (layer1Data.answer || '未识别')
+      ];
+      status.textContent = parts.join(' | ');
+      status.className = 'status done';
+    })
+    .catch(function (err) {
+      output.textContent = '错误：' + (err.message || err);
+      status.textContent = '❌ 分析失败：' + (err.message || '未知错误');
+      status.className = 'status error';
+    })
+    .finally(function () {
+      analyzing = false;
+      btnAnalyze.disabled = false;
+      btnAnalyze.textContent = '🔍 分析题目';
+    });
+  }
+
+  btnAnalyze.addEventListener('click', runAnalysis);
+
+  // 支持 Ctrl+Enter 快捷键
+  inputText.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      runAnalysis();
+    }
+  });
+
+  // ─── 初始化 ───
+  checkServer();
+})();
+</script>
+</body>
+</html>
