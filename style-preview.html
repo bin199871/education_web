@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>解题过程 · 样式预览（已选3种）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    color: #1a202c;
+    padding: 30px;
+  }
+  h1 { font-size: 28px; margin-bottom: 8px; text-align: center; }
+  .subtitle { text-align: center; color: #718096; font-size: 15px; margin-bottom: 30px; }
+
+  .type-section {
+    max-width: 1100px;
+    margin: 0 auto 40px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .type-header {
+    padding: 18px 24px;
+    font-size: 20px;
+    font-weight: 700;
+    border-bottom: 3px solid;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .type-header .badge {
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .style-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 20px;
+  }
+  @media (max-width: 900px) { .style-row { grid-template-columns: 1fr; } }
+
+  .style-card {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .style-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    border-color: #4299e1;
+  }
+  .style-card.selected {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+  }
+  .style-card .chosen-badge {
+    display: none;
+    position: absolute;
+    top: -8px; right: -8px;
+    background: #22c55e;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 14px;
+    border-radius: 10px;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(34,197,94,0.3);
+  }
+  .style-card.selected .chosen-badge { display: block; }
+
+  .style-card .label-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .style-card .label-bar .tag {
+    font-size: 11px;
+    padding: 1px 10px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .style-card .preview { padding: 16px; min-height: 280px; }
+
+  .tag-choice { background: #4299e1; }
+  .tag-judge { background: #f59e0b; }
+  .tag-fill { background: #8b5cf6; }
+  .tag-free { background: #ef4444; }
+
+  /* ── 选择题 样式B: 对比表格 ── */
+  .mc-table-b { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mc-table-b th { background: #f7fafc; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+  .mc-table-b td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+  .mc-table-b .mark-yes { color: #22c55e; font-weight: 700; }
+  .mc-table-b .mark-no { color: #ef4444; font-weight: 700; }
+  .mc-table-b .answer-row td { background: #f0fdf4; font-weight: 700; color: #166534; border-top: 2px solid #22c55e; }
+
+  /* ── 判断题 样式B: 判决书 ── */
+  .tf-court-b { border: 2px solid #d4a574; border-radius: 8px; padding: 14px; background: #fefbf6; font-size: 13px; }
+  .tf-court-b .court-title { text-align: center; font-size: 15px; font-weight: 700; color: #8b6914; margin-bottom: 10px; border-bottom: 1px solid #d4a574; padding-bottom: 8px; }
+  .tf-court-b .item { margin-bottom: 8px; padding-left: 8px; border-left: 2px solid #d4a574; }
+  .tf-court-b .item .lbl { font-weight: 600; color: #666; }
+  .tf-court-b .verdict-text { font-size: 18px; font-weight: 700; text-align: center; padding: 8px; margin-top: 8px; border-top: 1px solid #d4a574; }
+
+  /* ── 填空题 样式A: 原文还原 ── */
+  .fill-a .original { padding: 14px; background: #f7fafc; border-radius: 8px; font-size: 15px; line-height: 2.2; }
+  .fill-a .blank { display: inline-block; min-width: 80px; border-bottom: 2px dashed #4299e1; padding: 0 8px; text-align: center; font-weight: 700; color: #2b6cb0; background: #ebf8ff; border-radius: 3px; }
+  .fill-a .explanations { margin-top: 12px; }
+  .fill-a .explanations .item { padding: 6px 10px; margin-bottom: 4px; background: #fafafa; border-radius: 4px; font-size: 13px; }
+
+  /* ═══════════════ 解答题 · 全新3种样式 ═══════════════ */
+
+  /* 解答题-样式A：试卷答题式 */
+  .fr-exam-a {
+    font-size: 14px;
+    line-height: 1.8;
+    font-family: "Times New Roman", "SimSun", serif;
+  }
+  .fr-exam-a .question-area {
+    background: #f8f9fa;
+    padding: 12px 14px;
+    border-left: 4px solid #ef4444;
+    margin-bottom: 16px;
+    border-radius: 0 6px 6px 0;
+  }
+  .fr-exam-a .question-area .q-label {
+    font-weight: 700;
+    color: #ef4444;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .fr-exam-a .solution {
+    padding-left: 6px;
+  }
+  .fr-exam-a .solution .jie {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #333;
+  }
+  .fr-exam-a .solution .step {
+    margin-bottom: 10px;
+    padding-left: 12px;
+  }
+  .fr-exam-a .solution .step .step-label {
+    font-weight: 600;
+    color: #555;
+  }
+  .fr-exam-a .solution .formula-line {
+    text-align: center;
+    padding: 6px;
+    font-family: "Times New Roman", monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 2px 0;
+  }
+  .fr-exam-a .solution .result {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border: 2px solid #22c55e;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #166534;
+    background: #f0fdf4;
+  }
+  .fr-exam-a .solution .result .answer-underline {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 2px;
+  }
+
+  /* 解答题-样式B：标准答题卡 */
+  .fr-sheet-b {
+    font-size: 14px;
+    font-family: "Times New Roman", "SimSun", serif;
+    background: #fff;
+  }
+  .fr-sheet-b .sheet-header {
+    text-align: right;
+    font-size: 12px;
+    color: #999;
+    border-bottom: 2px solid #333;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+  }
+  .fr-sheet-b .question-text {
+    padding: 10px 12px;
+    background: #fafafa;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .fr-sheet-b .question-text .q-label {
+    font-weight: 700;
+    color: #ef4444;
+  }
+  .fr-sheet-b .solve-block { }
+  .fr-sheet-b .solve-block .line {
+    margin-bottom: 8px;
+    line-height: 1.7;
+  }
+  .fr-sheet-b .solve-block .line .label {
+    font-weight: 700;
+    color: #333;
+  }
+  .fr-sheet-b .solve-block .formula-box {
+    margin: 6px 0 6px 20px;
+    padding: 6px 14px;
+    background: #f8fafc;
+    border-left: 3px solid #3b82f6;
+    font-family: monospace;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .fr-sheet-b .solve-block .final-answer {
+    margin-top: 14px;
+    padding: 10px;
+    border-top: 2px solid #333;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .fr-sheet-b .solve-block .final-answer .box {
+    display: inline-block;
+    border: 2px solid #22c55e;
+    padding: 4px 20px;
+    border-radius: 4px;
+    color: #166534;
+  }
+
+  /* 解答题-样式C：试卷批注式 */
+  .fr-marked-c {
+    font-size: 14px;
+    line-height: 1.8;
+    font-family: "Times New Roman", "SimSun", serif;
+  }
+  .fr-marked-c .orig-question {
+    padding: 10px 14px;
+    background: #fff8f0;
+    border-left: 4px solid #f59e0b;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .fr-marked-c .orig-question .lbl { font-weight: 700; color: #d97706; }
+  .fr-marked-c .solve-body { }
+  .fr-marked-c .solve-body .step-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: #fafafa;
+  }
+  .fr-marked-c .solve-body .step-row .num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #666;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .fr-marked-c .solve-body .step-row .body { flex: 1; }
+  .fr-marked-c .solve-body .step-row .body .formula {
+    font-family: monospace;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    padding: 4px;
+    color: #1e40af;
+  }
+  .fr-marked-c .solve-body .step-row .mark {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+  }
+  .fr-marked-c .solve-body .mark-correct { color: #22c55e; }
+  .fr-marked-c .solve-body .marked-answer {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border: 2px solid #22c55e;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+  }
+  .fr-marked-c .solve-body .marked-answer .ans-text {
+    font-size: 17px;
+    font-weight: 700;
+    color: #166534;
+  }
+  .fr-marked-c .solve-body .marked-answer .score {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    font-weight: 800;
+    color: #22c55e;
+  }
+
+  /* 已选标识 */
+  .selected-tag {
+    display: inline-block;
+    background: #22c55e;
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>📝 解题过程 · 样式预览</h1>
+<p class="subtitle">已选：选择题-B / 判断题-B / 填空题-A &nbsp;|&nbsp; 解答题请选择</p>
+
+<!-- ===================== 选择题 ===================== -->
+<div class="type-section">
+  <div class="type-header" style="border-color:#4299e1">
+    📋 选择题 <span class="badge tag-choice">选择题</span>
+  </div>
+  <div class="style-row">
+    <div class="style-card">
+      <div class="label-bar"><span>🎴 样式A：卡片消除法</span><span class="tag" style="background:#dbeafe;color:#3b82f6">排除法</span></div>
+      <div class="preview" style="font-size:13px">
+        <div style="padding:10px 14px;margin-bottom:8px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fafafa;color:#999;text-decoration:line-through">❌ A. 环月飞行时合力为零<br><span style="color:#aaa;font-size:12px;text-decoration:none">↳ 圆周运动需要向心力</span></div>
+        <div style="padding:10px 14px;margin-bottom:8px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fafafa;color:#999;text-decoration:line-through">❌ B. 月球正面压力为零<br><span style="color:#aaa;font-size:12px;text-decoration:none">↳ 受重力就有压力</span></div>
+        <div style="padding:10px 14px;margin-bottom:8px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fafafa;color:#999;text-decoration:line-through">❌ C. 引力不同质量也不同<br><span style="color:#aaa;font-size:12px;text-decoration:none">↳ 质量是固有属性</span></div>
+        <div style="padding:10px 14px;margin-bottom:8px;border-radius:8px;border:1.5px solid #22c55e;background:#f0fdf4;color:#166534;font-weight:600;box-shadow:0 0 8px rgba(34,197,94,0.15)">✅ D. 月球压力比地球小<br><span style="font-size:12px;font-weight:400;color:#166534">↳ F压=mg, g↓→F压↓</span></div>
+        <div style="padding:12px;text-align:center;background:#22c55e;color:#fff;border-radius:8px;font-weight:700;font-size:18px">✅ 正确答案：D</div>
+      </div>
+    </div>
+    <div class="style-card selected">
+      <div class="chosen-badge">✓ 已选</div>
+      <div class="label-bar"><span>📊 样式B：对比表格法</span><span class="tag" style="background:#fef3c7;color:#d97706">结构清晰</span></div>
+      <div class="preview" style="padding:12px">
+        <table class="mc-table-b">
+          <tr><th>选项</th><th>内容</th><th>判定</th><th>理由</th></tr>
+          <tr><td><b>A</b></td><td>环月飞行时合力为零</td><td class="mark-no">✗</td><td>圆周运动需要向心力</td></tr>
+          <tr><td><b>B</b></td><td>月球正面压力为零</td><td class="mark-no">✗</td><td>受重力就有压力</td></tr>
+          <tr><td><b>C</b></td><td>引力不同质量也不同</td><td class="mark-no">✗</td><td>质量是固有属性</td></tr>
+          <tr><td><b>D</b></td><td>月球压力比地球小</td><td class="mark-yes">✓</td><td>G=mg，g变小→压力小</td></tr>
+          <tr class="answer-row"><td colspan="2">✅ 正确答案</td><td colspan="2">D</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="style-card">
+      <div class="label-bar"><span>⏳ 样式C：时间线推理法</span><span class="tag" style="background:#fce4ec;color:#e91e63">推理</span></div>
+      <div class="preview" style="font-size:13px">
+        <div style="position:relative;padding-left:30px">
+          <div style="position:absolute;left:10px;top:6px;bottom:6px;width:2px;background:#ddd"></div>
+          <div style="position:relative;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:#fafafa;border-left:3px solid #3b82f6">
+            <span style="position:absolute;left:-24px;top:6px;width:20px;height:20px;border-radius:50%;background:#3b82f6;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">①</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:4px;background:#eff6ff;color:#3b82f6;font-weight:600">读题</span> 嫦娥六号·质量与重力
+          </div>
+          <div style="position:relative;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:#fafafa;border-left:3px solid #ef4444">
+            <span style="position:absolute;left:-24px;top:6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">②</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:600">排除A</span> 环月飞行合力≠0
+          </div>
+          <div style="position:relative;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:#fafafa;border-left:3px solid #ef4444">
+            <span style="position:absolute;left:-24px;top:6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">③</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:600">排除B</span> 压力≠0
+          </div>
+          <div style="position:relative;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:#fafafa;border-left:3px solid #ef4444">
+            <span style="position:absolute;left:-24px;top:6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">④</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:4px;background:#fef2f2;color:#ef4444;font-weight:600">排除C</span> 质量不变
+          </div>
+          <div style="position:relative;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:#fafafa;border-left:3px solid #22c55e">
+            <span style="position:absolute;left:-24px;top:6px;width:20px;height:20px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">⑤</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:4px;background:#f0fdf4;color:#22c55e;font-weight:600">确认D</span> F压=mg, g↓→F压↓
+          </div>
+          <div style="padding:10px;text-align:center;background:#22c55e;color:#fff;border-radius:8px;font-weight:700;font-size:15px">✅ 最终答案：D</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 判断题 ===================== -->
+<div class="type-section">
+  <div class="type-header" style="border-color:#f59e0b">
+    ⚖️ 判断题 <span class="badge tag-judge">判断题</span>
+  </div>
+  <div class="style-row">
+    <div class="style-card">
+      <div class="label-bar"><span>🏷️ 样式A：对错标签法</span><span class="tag" style="background:#dbeafe;color:#3b82f6">直观</span></div>
+      <div class="preview" style="text-align:center;padding-top:20px">
+        <div style="font-size:15px;font-weight:600;margin-bottom:14px;padding:12px;background:#f7fafc;border-radius:8px">光年是时间单位。</div>
+        <div style="display:inline-block;padding:12px 32px;border-radius:12px;font-size:26px;font-weight:800;margin-bottom:10px;background:#fef2f2;color:#ef4444;border:2px solid #ef4444">✗ 错误</div>
+        <div style="font-size:13px;color:#666;padding:0 16px;line-height:1.6">光年是距离单位，表示光在真空中一年内传播的距离</div>
+      </div>
+    </div>
+    <div class="style-card selected">
+      <div class="chosen-badge">✓ 已选</div>
+      <div class="label-bar"><span>⚖️ 样式B：判决书法</span><span class="tag" style="background:#fef3c7;color:#d97706">严谨</span></div>
+      <div class="preview">
+        <div class="tf-court-b">
+          <div class="court-title">⚖️ 物理判断 · 裁决书</div>
+          <div class="item"><span class="lbl">陈述：</span>光年是时间单位</div>
+          <div class="item"><span class="lbl">依据：</span>光年定义 = 光在真空中一年传播的距离</div>
+          <div class="item"><span class="lbl">公式：</span>1 ly = c × 1 yr ≈ 9.46 × 10¹⁵ m</div>
+          <div class="item"><span class="lbl">判定：</span>名称含"年"但不属于时间单位</div>
+          <div class="verdict-text" style="color:#ef4444">✗ 裁决：错误</div>
+        </div>
+      </div>
+    </div>
+    <div class="style-card">
+      <div class="label-bar"><span>📑 样式C：正误对比法</span><span class="tag" style="background:#e8f5e9;color:#388e3c">对比</span></div>
+      <div class="preview">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+          <div style="padding:12px;border-radius:8px;background:#fef2f2;border:1.5px solid #ef4444">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">❌ 错误理解</div>
+            <div style="font-size:12px;color:#666;margin-bottom:6px">"年"是时间单位 → 光年是时间单位</div>
+            <div style="display:inline-block;padding:4px 16px;border-radius:6px;font-weight:700;font-size:18px;background:#fef2f2;color:#ef4444">✗</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;background:#f0fdf4;border:1.5px solid #22c55e">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">✅ 正确理解</div>
+            <div style="font-size:12px;color:#666;margin-bottom:6px">光年是距离单位，1光年≈9.46万亿公里</div>
+            <div style="display:inline-block;padding:4px 16px;border-radius:6px;font-weight:700;font-size:18px;background:#f0fdf4;color:#22c55e">✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 填空题 ===================== -->
+<div class="type-section">
+  <div class="type-header" style="border-color:#8b5cf6">
+    ✍️ 填空题 <span class="badge tag-fill">填空题</span>
+  </div>
+  <div class="style-row">
+    <div class="style-card selected">
+      <div class="chosen-badge">✓ 已选</div>
+      <div class="label-bar"><span>📝 样式A：原文还原法</span><span class="tag" style="background:#dbeafe;color:#3b82f6">沉浸</span></div>
+      <div class="preview">
+        <div class="fill-a">
+          <div class="original">
+            光在真空中的传播速度是 <span class="blank">3 × 10⁸</span> m/s。<br>
+            在真空中，光的传播速度 <span class="blank">大于</span> 声音的传播速度。
+          </div>
+          <div class="explanations">
+            <div class="item">① <b>3 × 10⁸ m/s</b> — 真空光速是宇宙中最快速度</div>
+            <div class="item">② <b>大于</b> — 光速约 3×10⁸ m/s，声速约 340 m/s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="style-card">
+      <div class="label-bar"><span>📋 样式B：列表填空法</span><span class="tag" style="background:#fef3c7;color:#d97706">清晰</span></div>
+      <div class="preview" style="font-size:13px">
+        <div style="display:flex;gap:10px;padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="width:28px;height:28px;border-radius:50%;background:#4299e1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">1</div>
+          <div><div style="color:#666">光在真空中的传播速度</div><span style="display:inline-block;padding:2px 12px;background:#ebf8ff;color:#2b6cb0;border-radius:4px;font-weight:600">3 × 10⁸ m/s</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="width:28px;height:28px;border-radius:50%;background:#4299e1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">2</div>
+          <div><div style="color:#666">真空中光速 vs 声速</div><span style="display:inline-block;padding:2px 12px;background:#ebf8ff;color:#2b6cb0;border-radius:4px;font-weight:600">大于</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:10px;background:#f0fdf4;border-radius:6px;margin-top:4px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">✓</div>
+          <div style="font-weight:700;color:#166534">全对！2/2 空填写正确</div>
+        </div>
+      </div>
+    </div>
+    <div class="style-card">
+      <div class="label-bar"><span>🧮 样式C：公式卡片法</span><span class="tag" style="background:#fce4ec;color:#e91e63">公式</span></div>
+      <div class="preview" style="font-size:13px">
+        <div style="padding:12px;margin-bottom:8px;border-radius:8px;background:#f7fafc;border-left:4px solid #4299e1">
+          <div style="color:#666;margin-bottom:4px">📌 空1：光的传播速度</div>
+          <div style="font-weight:700;font-size:15px;color:#2b6cb0">c = 3 × 10⁸ m/s</div>
+          <div style="font-size:12px;color:#999;margin-top:2px">真空光速是宇宙速度上限</div>
+        </div>
+        <div style="padding:12px;margin-bottom:8px;border-radius:8px;background:#f7fafc;border-left:4px solid #f59e0b">
+          <div style="color:#666;margin-bottom:4px">📌 空2：与声速比较</div>
+          <div style="font-weight:700;font-size:15px;color:#2b6cb0">c ＞ v_声</div>
+          <div style="font-size:12px;color:#999;margin-top:2px">光速 ≈ 3×10⁸ m/s，声速 ≈ 340 m/s</div>
+        </div>
+        <div style="padding:12px;border-radius:8px;background:#f0fdf4;border-left:4px solid #22c55e">
+          <div style="color:#666;margin-bottom:4px">✅ 填写结果</div>
+          <div style="font-weight:700;font-size:15px;color:#166534">全部正确</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 解答题 ===================== -->
+<div class="type-section">
+  <div class="type-header" style="border-color:#ef4444">
+    📐 解答题 <span class="badge tag-free">解答题</span>
+    <span style="font-size:14px;font-weight:400;color:#718096;margin-left:auto">B风格三种变体 · 选出你想要的</span>
+  </div>
+  <div class="style-row">
+
+    <!-- 样式A：答题卡精致版 -->
+    <div class="style-card">
+      <div class="label-bar">
+        <span>📄 样式A：答题卡精致版</span>
+        <span class="tag" style="background:#dbeafe;color:#3b82f6">精致</span>
+      </div>
+      <div class="preview" style="font-family:'Times New Roman','SimSun',serif;font-size:14px;background:#fff;color:#333">
+        <div style="border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-bottom:12px;background:#f9fafb">
+          <div style="font-weight:700;color:#dc2626;font-size:13px;margin-bottom:4px">📌 原题</div>
+          <div style="color:#374151">一个质量为 2kg 的物体从 10m 高处自由下落，忽略空气阻力，g 取 10m/s²。求物体落地时的速度大小。</div>
+        </div>
+
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px;color:#111">解：</div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px">步骤一 · 分析题意</div>
+          <div style="color:#555;font-size:13px;line-height:1.7">物体做自由落体运动，初速度 v₀ = 0，下落高度 h = 10m，重力加速度 g = 10m/s²。由机械能守恒定律，重力势能转化为动能。</div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px">步骤二 · 选择公式</div>
+          <div style="color:#555;font-size:13px">机械能守恒：mgh = ½mv² → v = √(2gh)</div>
+          <div style="text-align:center;padding:6px;margin:4px 0;background:#f3f4f6;border-radius:4px;font-family:monospace;font-size:15px;font-weight:700;color:#1d4ed8">v = √(2gh)</div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:600;color:#374151;margin-bottom:2px">步骤三 · 代入计算</div>
+          <div style="text-align:center;padding:6px;background:#f3f4f6;border-radius:4px;font-family:monospace;font-size:15px;font-weight:700;color:#1d4ed8">v = √(2 × 10 × 10) = √200 = 10√2</div>
+        </div>
+
+        <div style="margin-top:12px;padding:10px;border:2px solid #16a34a;border-radius:6px;text-align:center;background:#f0fdf4">
+          <div style="font-size:12px;color:#555">答</div>
+          <div style="font-size:16px;font-weight:700;color:#16a34a">v = 10√2 ≈ 14.14 m/s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 样式B：答题卡简约版（当前项目实现） -->
+    <div class="style-card">
+      <div class="label-bar">
+        <span>📝 样式B：答题卡简约版</span>
+        <span class="tag" style="background:#fef3c7;color:#d97706">简约</span>
+      </div>
+      <div class="preview" style="font-family:'Times New Roman','SimSun',serif;font-size:14px;background:#fff;color:#333">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px">解：</div>
+
+        <div style="margin-bottom:8px">
+          <div style="font-weight:600;color:#555;font-size:13px">分析：</div>
+          <div style="color:#444;font-size:13px;line-height:1.6">自由落体，v₀=0，h=10m，g=10m/s²</div>
+        </div>
+
+        <div style="margin-bottom:8px">
+          <div style="font-weight:600;color:#555;font-size:13px">公式：</div>
+          <div style="text-align:center;padding:4px;background:#f3f4f6;border-radius:4px;font-family:monospace;font-size:15px;font-weight:700;color:#1d4ed8">v = √(2gh)</div>
+        </div>
+
+        <div style="margin-bottom:8px">
+          <div style="font-weight:600;color:#555;font-size:13px">计算：</div>
+          <div style="text-align:center;padding:4px;background:#f3f4f6;border-radius:4px;font-family:monospace;font-size:15px;font-weight:700;color:#1d4ed8">v = √(2×10×10) = 10√2</div>
+        </div>
+
+        <div style="margin-top:10px;padding:8px;border:2px solid #16a34a;border-radius:6px;text-align:center;background:#f0fdf4">
+          <div style="font-weight:700;color:#16a34a;font-size:16px">v = 10√2 ≈ 14.14 m/s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 样式C：极简模式（无样式） -->
+    <div class="style-card">
+      <div class="label-bar">
+        <span>📋 样式C：极简模式</span>
+        <span class="tag" style="background:#e5e7eb;color:#555">极简</span>
+      </div>
+      <div class="preview" style="font-family:'Times New Roman','SimSun',serif;font-size:14px;background:#fff;color:#333;padding:20px 16px">
+        <div style="margin-bottom:8px;color:#111">一个质量为 2kg 的物体从 10m 高处自由下落，忽略空气阻力，g 取 10m/s²。求物体落地时的速度大小。</div>
+        <div style="margin-bottom:6px;font-weight:700;color:#111">解：</div>
+        <div style="margin-bottom:4px">物体做自由落体运动，v₀=0，h=10m，g=10m/s²。</div>
+        <div style="margin-bottom:4px">由机械能守恒：mgh = ½mv²</div>
+        <div style="margin-bottom:4px">v = √(2gh) = √(2×10×10) = √200 = 10√2</div>
+        <div style="margin-bottom:4px;font-weight:700">v = 10√2 ≈ 14.14 m/s</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="max-width:1100px;margin:0 auto;text-align:center;padding:20px;color:#718096;font-size:14px">
+  💡 已选定：选择题-B / 判断题-B / 填空题-A &nbsp;|&nbsp; 解答题请从 A/B/C 中选一个，打"解答题-X"发给我
+</div>
+
+<script>
+document.querySelectorAll('.style-card:not(.selected)').forEach(function(el) {
+  el.addEventListener('click', function() {
+    var section = this.closest('.type-section');
+    section.querySelectorAll('.style-card').forEach(function(c) { c.classList.remove('selected'); });
+    this.classList.add('selected');
+  });
+});
+</script>
+
+</body>
+</html>
