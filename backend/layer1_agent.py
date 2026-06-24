@@ -800,12 +800,20 @@ def _repair_llm_result(result: dict) -> dict:
     if not isinstance(result, dict):
         return result
 
-    # 修复 scenes 字段：LLM 可能返回字符串列表而不是 dict 列表
+    # 修复 scenes 字段：LLM 可能返回字符串或缺失字段的 dict
     sa = result.get("scenario_analysis")
     if isinstance(sa, dict):
         scenes = sa.get("scenes", [])
-        if scenes and isinstance(scenes[0], str):
-            sa["scenes"] = [{"name": s, "motion": "", "force": ""} for s in scenes]
+        if scenes:
+            if isinstance(scenes[0], str):
+                sa["scenes"] = [{"name": s, "motion": "", "force": ""} for s in scenes]
+            elif isinstance(scenes[0], dict) and "name" not in scenes[0]:
+                # LLM 返回了缺 name 的场景（如只有 description/analysis）
+                for s in scenes:
+                    if "description" in s and "name" not in s:
+                        s.setdefault("name", s["description"][:20])
+                    elif "analysis" in s and "name" not in s:
+                        s.setdefault("name", s["analysis"][:20])
 
     # 修复 question_type
     result.setdefault("question_type", "选择题")

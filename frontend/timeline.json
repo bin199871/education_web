@@ -4,7 +4,7 @@
     "fps": 60,
     "width": 960,
     "height": 640,
-    "title": "质量与重力的区别，牛顿运动定律"
+    "title": "光年"
   },
   "timeline": [
     {
@@ -15,9 +15,9 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 80,
+          "stars": 60,
           "rotationSpeed": 0.001,
-          "twinkleIntensity": 0.5
+          "twinkleIntensity": 0.4
         }
       },
       "transition_in": {
@@ -102,31 +102,7 @@
       "endFrame": 1801,
       "background": {
         "component": "drawEarthBackground",
-        "params": {
-          "clouds": [
-            {
-              "x": 100,
-              "y": 60,
-              "w": 80,
-              "h": 25,
-              "speed": 0.3
-            },
-            {
-              "x": 400,
-              "y": 80,
-              "w": 100,
-              "h": 30,
-              "speed": 0.2
-            },
-            {
-              "x": 650,
-              "y": 50,
-              "w": 70,
-              "h": 20,
-              "speed": 0.35
-            }
-          ]
-        }
+        "params": {}
       },
       "transition_in": null,
       "transition": {
@@ -141,7 +117,7 @@
             "cy": 380,
             "scale": 0.75,
             "weight": 1.0,
-            "label": "⚖️ 质量 = 1.0 kg（不变）",
+            "label": "场景 A",
             "highlight": true
           }
         },
@@ -152,7 +128,7 @@
             "cy": 380,
             "scale": 0.75,
             "weight": 9.8,
-            "label": "📏 重力 = 9.8 N（地球）",
+            "label": "场景 B",
             "highlight": true
           }
         },
@@ -162,7 +138,7 @@
             "cx": 480,
             "cy": 600,
             "targetY": 580,
-            "text": "环月飞行：样品随飞行器绕月运动，合力提供向心力，不为零。 9.8 m/s²",
+            "text": "光年包含'年'字，容易让人误以为是时间单 9.8 m/s²",
             "color": "#FFD54F",
             "font": "20px sans-serif",
             "startFrame": 1561,
@@ -175,7 +151,7 @@
           "params": {
             "cx": 80,
             "cy": 30,
-            "text": "环月飞行：样品随飞行器绕月运动，合力提供向心力，不为零。",
+            "text": "光年包含'年'字，容易让人误以为是时间单",
             "color": "#ffffff",
             "bgColor": "rgba(0,0,0,0.5)",
             "fontSize": 14
@@ -191,40 +167,8 @@
       "background": {
         "component": "drawMoonBackground",
         "params": {
-          "craters": [
-            {
-              "x": 200,
-              "y": 350,
-              "rx": 30,
-              "ry": 15,
-              "depth": 0.5
-            },
-            {
-              "x": 500,
-              "y": 320,
-              "rx": 20,
-              "ry": 10,
-              "depth": 0.3
-            },
-            {
-              "x": 700,
-              "y": 370,
-              "rx": 40,
-              "ry": 18,
-              "depth": 0.4
-            },
-            {
-              "x": 350,
-              "y": 380,
-              "rx": 15,
-              "ry": 8,
-              "depth": 0.6
-            }
-          ],
-          "earthPosition": {
-            "x": 120,
-            "y": 60
-          }
+          "craters": [],
+          "earthPosition": null
         }
       },
       "transition_in": null,
@@ -251,7 +195,7 @@
             "cy": 380,
             "scale": 0.75,
             "weight": 1.6,
-            "label": "📏 重力（月球正面/背面：样品静止在月球表面时，对表面压力等于重力（忽略自转影响）。）",
+            "label": "📏 重力（场景B）",
             "highlight": true
           }
         },
@@ -261,7 +205,7 @@
             "cx": 480,
             "cy": 600,
             "targetY": 580,
-            "text": "月球正面/背面：样品静止在月球表面时，对表面压力等于重力（忽略自转影响）。 1.6 m/s²",
+            "text": "场景B 1.6 m/s²",
             "color": "#FFD54F",
             "font": "20px sans-serif",
             "startFrame": 2762,
@@ -274,7 +218,7 @@
           "params": {
             "cx": 80,
             "cy": 30,
-            "text": "月球正面/背面：样品静止在月球表面时，对表面压力等于重力（忽略自转影响）。",
+            "text": "场景B",
             "color": "#ffffff",
             "bgColor": "rgba(0,0,0,0.5)",
             "fontSize": 14
@@ -290,7 +234,7 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 60,
+          "stars": 50,
           "rotationSpeed": 0.0005,
           "twinkleIntensity": 0.2
         }
@@ -362,7 +306,7 @@
           "params": {
             "cx": 480,
             "cy": 540,
-            "text": "核心公式: G = mg",
+            "text": "核心公式: 1光年 = 光速 × 1年 ≈ 9.46 × 10^15 米",
             "startFrame": 3723,
             "charsPerSecond": 6,
             "color": "#FFD700",
@@ -392,8 +336,8 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 100,
-          "rotationSpeed": 0.0005,
+          "stars": 80,
+          "rotationSpeed": 0.0008,
           "twinkleIntensity": 0.3
         }
       },
@@ -436,7 +380,7 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 20,
+          "stars": 15,
           "rotationSpeed": 0,
           "twinkleIntensity": 0
         }
@@ -463,7 +407,7 @@
           "params": {
             "cx": 480,
             "cy": 120,
-            "text": "月球表面重力加速度为地球的1/6，比较样品在不同位置（环月飞行、月球正面、月球背…",
+            "text": "题目直接陈述一个关于光年单位的判断，需要根据物理定义判断其正确性。",
             "startFrame": 180,
             "charsPerSecond": 12,
             "color": "#1A237E",
@@ -475,7 +419,7 @@
           "params": {
             "cx": 280,
             "cy": 220,
-            "text": "A. 在环月飞行时，样品所受合力为零",
+            "text": "A. 正确",
             "startFrame": 300,
             "charsPerSecond": 15,
             "color": "#333333",
@@ -488,34 +432,8 @@
           "params": {
             "cx": 280,
             "cy": 275,
-            "text": "B. 若将样品放置在月球正面，它对月球表面压力等于零",
+            "text": "B. 错误",
             "startFrame": 360,
-            "charsPerSecond": 15,
-            "color": "#333333",
-            "font": "18px sans-serif",
-            "align": "left"
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 280,
-            "cy": 330,
-            "text": "C. 样品在不同过程中受到的引力不同，所以质量也不同",
-            "startFrame": 420,
-            "charsPerSecond": 15,
-            "color": "#333333",
-            "font": "18px sans-serif",
-            "align": "left"
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 280,
-            "cy": 385,
-            "text": "D. 样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的",
-            "startFrame": 480,
             "charsPerSecond": 15,
             "color": "#333333",
             "font": "18px sans-serif",
@@ -545,7 +463,7 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 20,
+          "stars": 15,
           "rotationSpeed": 0,
           "twinkleIntensity": 0
         }
@@ -573,41 +491,11 @@
             "cy": 140,
             "width": 500,
             "height": 50,
-            "text": "环月飞行：样品随飞行器绕月运动，合力提供向心力，不为零。: ",
+            "text": "光年包含'年'字，容易让人误以为是时间单: ",
             "textColor": "#E0E0E0",
             "bgColor": "rgba(30,30,60,0.85)",
             "borderColor": "#5C6BC0",
             "popStartFrame": 721,
-            "popDuration": 16
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 220,
-            "width": 500,
-            "height": 50,
-            "text": "月球正面/背面：样品静止在月球表面时，对表面压力等于重力（忽: ",
-            "textColor": "#E0E0E0",
-            "bgColor": "rgba(30,30,60,0.85)",
-            "borderColor": "#5C6BC0",
-            "popStartFrame": 739,
-            "popDuration": 16
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 300,
-            "width": 500,
-            "height": 50,
-            "text": "地球表面：样品对地球表面压力等于地球重力。: ",
-            "textColor": "#E0E0E0",
-            "bgColor": "rgba(30,30,60,0.85)",
-            "borderColor": "#5C6BC0",
-            "popStartFrame": 757,
             "popDuration": 16
           }
         },
@@ -617,7 +505,7 @@
             "cx": 480,
             "cy": 660,
             "targetY": 600,
-            "text": "💡 质量与重力",
+            "text": "💡 光年",
             "color": "#FFD54F",
             "font": "18px sans-serif",
             "startFrame": 1441,
@@ -634,7 +522,7 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 20,
+          "stars": 15,
           "rotationSpeed": 0,
           "twinkleIntensity": 0
         }
@@ -649,10 +537,10 @@
           "component": "drawPopupLabel",
           "params": {
             "cx": 480,
-            "cy": 140,
+            "cy": 230,
             "width": 550,
             "height": 55,
-            "text": "❌ A. 在环月飞行时，样品所受合力为零",
+            "text": "❌ A. 正确",
             "textColor": "#EF5350",
             "bgColor": "rgba(0,0,0,0.7)",
             "borderColor": "#EF5350",
@@ -664,36 +552,9 @@
           "component": "drawTypewriterText",
           "params": {
             "cx": 480,
-            "cy": 175,
-            "text": "环月飞行时，样品随飞行器做圆周运动，合力提供向心力，指向月球中心，不为零。",
-            "startFrame": 1812,
-            "charsPerSecond": 15,
-            "color": "#B0BEC5",
-            "font": "14px sans-serif"
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 230,
-            "width": 550,
-            "height": 55,
-            "text": "❌ B. 若将样品放置在月球正面，它对月球表面压力等于零",
-            "textColor": "#EF5350",
-            "bgColor": "rgba(0,0,0,0.7)",
-            "borderColor": "#EF5350",
-            "popStartFrame": 1822,
-            "popDuration": 14
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 480,
             "cy": 265,
-            "text": "样品放置在月球正面时，受月球引力作用，对月球表面有压力，大小等于样品在月球上的重",
-            "startFrame": 1832,
+            "text": "需 LLM 或人工判断",
+            "startFrame": 1812,
             "charsPerSecond": 15,
             "color": "#B0BEC5",
             "font": "14px sans-serif"
@@ -706,11 +567,11 @@
             "cy": 320,
             "width": 550,
             "height": 55,
-            "text": "❌ C. 样品在不同过程中受到的引力不同，所以质量也不同",
+            "text": "❌ B. 错误",
             "textColor": "#EF5350",
             "bgColor": "rgba(0,0,0,0.7)",
             "borderColor": "#EF5350",
-            "popStartFrame": 1842,
+            "popStartFrame": 1822,
             "popDuration": 14
           }
         },
@@ -719,35 +580,8 @@
           "params": {
             "cx": 480,
             "cy": 355,
-            "text": "质量是物体的固有属性，不随位置或引力变化；引力不同只改变重力，不改变质量。",
-            "startFrame": 1852,
-            "charsPerSecond": 15,
-            "color": "#B0BEC5",
-            "font": "14px sans-serif"
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 410,
-            "width": 550,
-            "height": 55,
-            "text": "✅ D. 样品放置在月球背面时对月球的压力，比放置在地球表面时对地球的压力小",
-            "textColor": "#4CAF50",
-            "bgColor": "rgba(0,0,0,0.7)",
-            "borderColor": "#4CAF50",
-            "popStartFrame": 1862,
-            "popDuration": 14
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 480,
-            "cy": 445,
-            "text": "样品质量不变，月球表面重力加速度约为地球的1/6，因此样品在月球上的重力（即对月",
-            "startFrame": 1872,
+            "text": "需 LLM 或人工判断",
+            "startFrame": 1832,
             "charsPerSecond": 15,
             "color": "#B0BEC5",
             "font": "14px sans-serif"
@@ -763,7 +597,7 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 20,
+          "stars": 15,
           "rotationSpeed": 0,
           "twinkleIntensity": 0
         }
@@ -781,7 +615,7 @@
             "cy": 280,
             "width": 350,
             "height": 70,
-            "text": "✅ 正确答案: D",
+            "text": "✅ 正确答案: ",
             "textColor": "#4CAF50",
             "bgColor": "rgba(0,40,0,0.85)",
             "borderColor": "#4CAF50",
@@ -794,7 +628,7 @@
           "params": {
             "cx": 480,
             "cy": 380,
-            "text": "依据公式: G = mg",
+            "text": "依据公式: 1光年 = 光速 × 1年 ≈ 9.46 × 10^15 米",
             "startFrame": 3843,
             "charsPerSecond": 8,
             "color": "#FFD700",
@@ -811,8 +645,8 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 100,
-          "rotationSpeed": 0.0005,
+          "stars": 80,
+          "rotationSpeed": 0.0008,
           "twinkleIntensity": 0.3
         }
       },
@@ -827,7 +661,7 @@
           "params": {
             "cx": 480,
             "cy": 300,
-            "text": "G = mg",
+            "text": "1光年 = 光速 × 1年 ≈ 9.46 × 10^15 米",
             "startFrame": 4204,
             "charsPerSecond": 6,
             "color": "#FFD700",
@@ -840,7 +674,7 @@
             "cx": 480,
             "cy": 380,
             "targetY": 360,
-            "text": "💡 质量与重力",
+            "text": "💡 光年",
             "color": "#B0BEC5",
             "font": "18px sans-serif",
             "startFrame": 4384,
@@ -871,9 +705,9 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 120,
-          "rotationSpeed": 0.0008,
-          "twinkleIntensity": 0.6
+          "stars": 100,
+          "rotationSpeed": 0.001,
+          "twinkleIntensity": 0.5
         }
       },
       "transition_in": null,
@@ -898,7 +732,7 @@
           "params": {
             "cx": 480,
             "cy": 80,
-            "text": "⚖️ 质量与重力",
+            "text": "⚖️ 光年",
             "startFrame": 120,
             "charsPerSecond": 5,
             "color": "#FFD700",
@@ -910,7 +744,7 @@
           "params": {
             "cx": 480,
             "cy": 130,
-            "text": "质量是物体所含物质的多少，是标量，不随位置变化；重力是物体由于星球吸引而受到的力，随重力加速度变化。",
+            "text": "光年是天文学中常用的距离单位，表示光在真空中一年内传播的距离。",
             "startFrame": 360,
             "charsPerSecond": 12,
             "color": "#E0E0E0",
@@ -922,7 +756,7 @@
           "params": {
             "cx": 480,
             "cy": 560,
-            "text": "公式: G = mg",
+            "text": "公式: 1光年 = 光速 × 1年 ≈ 9.46 × 10^15 米",
             "startFrame": 600,
             "charsPerSecond": 6,
             "color": "#81D4FA",
@@ -939,9 +773,9 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 120,
-          "rotationSpeed": 0.0008,
-          "twinkleIntensity": 0.6
+          "stars": 100,
+          "rotationSpeed": 0.001,
+          "twinkleIntensity": 0.5
         }
       },
       "transition_in": null,
@@ -967,7 +801,7 @@
             "cy": 110,
             "width": 600,
             "height": 50,
-            "text": "❌ 常见误解: 误认为质量随重力变化",
+            "text": "❌ 常见误解: 误以为光年是时间单位，实际上它是距离单位",
             "textColor": "#FFAB91",
             "bgColor": "rgba(60,20,20,0.85)",
             "borderColor": "#FF5722",
@@ -982,7 +816,7 @@
             "cy": 190,
             "width": 600,
             "height": 50,
-            "text": "❌ 常见误解: 误认为在环绕飞行时物体不受力",
+            "text": "❌ 常见误解: 混淆光年与年（时间单位）的概念",
             "textColor": "#FFAB91",
             "bgColor": "rgba(60,20,20,0.85)",
             "borderColor": "#FF5722",
@@ -996,7 +830,7 @@
             "cx": 480,
             "cy": 660,
             "targetY": 270,
-            "text": "🌌 掌握了质量与重力，就能理解更多物理现象",
+            "text": "🌌 掌握了光年，就能理解更多物理现象",
             "color": "#B2EBF2",
             "font": "18px sans-serif",
             "startFrame": 1321,
@@ -1013,9 +847,9 @@
       "background": {
         "component": "drawStarField",
         "params": {
-          "stars": 120,
-          "rotationSpeed": 0.0008,
-          "twinkleIntensity": 0.6
+          "stars": 100,
+          "rotationSpeed": 0.001,
+          "twinkleIntensity": 0.5
         }
       },
       "transition_in": null,
@@ -1041,7 +875,7 @@
           "params": {
             "cx": 480,
             "cy": 370,
-            "text": "质量与重力 —— 一堂关于宇宙的物理课",
+            "text": "光年 —— 一堂关于宇宙的物理课",
             "startFrame": 2402,
             "charsPerSecond": 5,
             "color": "#ffffff",

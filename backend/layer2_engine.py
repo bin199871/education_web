@@ -565,8 +565,18 @@ class ActPlanGenerator:
 
         # 匹配视觉主题
         self.visual_theme = self._match_visual_theme()
-        # 提取场景名称
-        self.scene_names = [s["name"] for s in self.scenario.get("scenes", [])]
+        # 提取场景名称（兼容 LLM 返回的缺字段场景）
+        self.scene_names = []
+        for s in self.scenario.get("scenes", []):
+            if isinstance(s, dict):
+                if "name" in s:
+                    self.scene_names.append(s["name"])
+                elif "description" in s:
+                    self.scene_names.append(s["description"][:20])
+                else:
+                    self.scene_names.append("场景" + str(len(self.scene_names) + 1))
+            elif isinstance(s, str):
+                self.scene_names.append(s[:20])
 
     def _match_visual_theme(self) -> dict:
         """根据 Layer 1 的核心概念匹配视觉主题。"""
