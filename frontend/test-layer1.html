@@ -816,34 +816,6 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     html += '</table>';
     html += '</div>';
 
-    // 解题思路
-    html += '<div style="font-size:12px;color:#64748b;margin-bottom:12px;padding:8px 12px;background:#1e293b;border-radius:8px;border:1px solid #334155">';
-    html += '💡 解题思路：' + (solution.approach || '');
-    html += '</div>';
-
-    // 详细解题步骤
-    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#e879f9'];
-    for (var si = 0; si < solution.steps.length; si++) {
-      var step = solution.steps[si];
-      var color = stepColors[si % stepColors.length];
-      html += '<div class="step-card">';
-      html += '<div class="step-header">';
-      html += '<div class="step-num" style="background:' + color + '22;color:' + color + '">' + step.step_number + '</div>';
-      html += '<div class="step-title">' + step.title + '</div>';
-      html += '</div>';
-      html += '<div class="step-body">';
-      if (step.formula) {
-        html += '<div class="step-formula">' + step.formula + '</div>';
-      }
-      if (step.content) {
-        html += '<div class="step-content">' + step.content + '</div>';
-      }
-      if (step.narration) {
-        html += '<div class="step-narration">' + step.narration + '</div>';
-      }
-      html += '</div></div>';
-    }
-
     return html;
   }
 
@@ -892,26 +864,10 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     html += '</div>';
     html += '</div>';
 
-    // 解题思路和步骤
+    // 解题思路
     html += '<div style="font-size:12px;color:#64748b;margin-bottom:12px;padding:8px 12px;background:#1e293b;border-radius:8px;border:1px solid #334155">';
     html += '💡 解题思路：' + (solution.approach || '');
     html += '</div>';
-
-    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa'];
-    for (var si = 0; si < solution.steps.length; si++) {
-      var step = solution.steps[si];
-      var color = stepColors[si % stepColors.length];
-      html += '<div class="step-card">';
-      html += '<div class="step-header">';
-      html += '<div class="step-num" style="background:' + color + '22;color:' + color + '">' + step.step_number + '</div>';
-      html += '<div class="step-title">' + step.title + '</div>';
-      html += '</div>';
-      html += '<div class="step-body">';
-      if (step.formula) { html += '<div class="step-formula">' + step.formula + '</div>'; }
-      if (step.content) { html += '<div class="step-content">' + step.content + '</div>'; }
-      if (step.narration) { html += '<div class="step-narration">' + step.narration + '</div>'; }
-      html += '</div></div>';
-    }
 
     return html;
   }
@@ -978,27 +934,6 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     }
     html += '</div>';
 
-    // 解题步骤
-    html += '<div style="font-size:12px;color:#64748b;margin-bottom:12px;padding:8px 12px;background:#1e293b;border-radius:8px;border:1px solid #334155">';
-    html += '💡 解析思路：' + (solution.approach || '');
-    html += '</div>';
-
-    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa'];
-    for (var si = 0; si < solution.steps.length; si++) {
-      var step = solution.steps[si];
-      var color = stepColors[si % stepColors.length];
-      html += '<div class="step-card">';
-      html += '<div class="step-header">';
-      html += '<div class="step-num" style="background:' + color + '22;color:' + color + '">' + step.step_number + '</div>';
-      html += '<div class="step-title">' + step.title + '</div>';
-      html += '</div>';
-      html += '<div class="step-body">';
-      if (step.formula) { html += '<div class="step-formula">' + step.formula + '</div>'; }
-      if (step.content) { html += '<div class="step-content">' + step.content + '</div>'; }
-      if (step.narration) { html += '<div class="step-narration">' + step.narration + '</div>'; }
-      html += '</div></div>';
-    }
-
     return html;
   }
 
@@ -1026,37 +961,28 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     // 解：头部
     html += '<div style="font-weight:700;font-size:16px;color:#e2e8f0;margin-bottom:10px">解：</div>';
 
-    // 步骤渲染
-    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c'];
+    // 答题卡步骤渲染（纯文本段落式，无数字卡片）
     for (var si = 0; si < solution.steps.length; si++) {
       var step = solution.steps[si];
-      var color = stepColors[si % stepColors.length];
 
-      // 答题卡样式 - 分步展示
-      html += '<div style="margin-bottom:10px;padding:10px 14px;background:#0f172a;border-radius:8px;border:1px solid #1e293b;border-left:4px solid ' + color + '">';
-
-      // 步骤标题
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-      html += '<span style="width:24px;height:24px;border-radius:50%;background:' + color + '22;color:' + color + ';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">' + step.step_number + '</span>';
-      html += '<span style="font-weight:600;color:#e2e8f0;font-size:14px">' + step.title + '</span>';
-      html += '</div>';
+      // 分步段落
+      html += '<div style="margin-bottom:12px;padding:6px 0">';
+      html += '<div style="font-weight:600;color:#e2e8f0;font-size:14px;margin-bottom:4px">' + step.title + '</div>';
 
       // 内容
       if (step.content) {
-        html += '<div style="color:#94a3b8;font-size:13px;line-height:1.7;padding:0 0 4px 0">' + step.content + '</div>';
+        html += '<div style="color:#94a3b8;font-size:13px;line-height:1.7">' + step.content + '</div>';
       }
 
       // 公式（居中突出）
       if (step.formula) {
-        html += '<div style="text-align:center;padding:6px 10px;margin:4px 0;background:#1e293b;border-radius:6px;font-family:monospace;font-size:15px;font-weight:600;color:#fbbf24">' + step.formula + '</div>';
+        html += '<div style="text-align:center;padding:6px 10px;margin:6px 0;background:#1e293b;border-radius:6px;font-family:monospace;font-size:15px;font-weight:600;color:#fbbf24">' + step.formula + '</div>';
       }
 
       // 旁白
       if (step.narration) {
-        html += '<div style="font-size:12px;color:#64748b;padding:2px 0;border-left:2px solid ' + color + ';padding-left:8px;margin-top:4px">🎙️ ' + step.narration + '</div>';
+        html += '<div style="font-size:12px;color:#64748b;padding:2px 0;border-left:2px solid #475569;padding-left:8px;margin-top:4px">🎙️ ' + step.narration + '</div>';
       }
-
-      html += '<div style="font-size:11px;color:#475569;text-align:right;margin-top:4px">⏱ ' + step.duration_sec + '秒</div>';
       html += '</div>';
     }
 
@@ -1084,21 +1010,17 @@ D. 样品放置在月球背面时对月球的压力，比放置在地球表面�
     html += '💡 解题思路：' + (solution.approach || '');
     html += '</div>';
 
-    var stepColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#e879f9'];
     for (var si = 0; si < solution.steps.length; si++) {
       var step = solution.steps[si];
-      var color = stepColors[si % stepColors.length];
-      html += '<div class="step-card">';
-      html += '<div class="step-header">';
-      html += '<div class="step-num" style="background:' + color + '22;color:' + color + '">' + step.step_number + '</div>';
-      html += '<div class="step-title">' + step.title + '</div>';
+      html += '<div style="margin-bottom:10px;padding:8px 12px;background:#0f172a;border-left:3px solid #475569;border-radius:0 6px 6px 0">';
+      html += '<div style="font-weight:600;color:#e2e8f0;font-size:14px;margin-bottom:4px">' + step.title + '</div>';
+      if (step.formula) {
+        html += '<div style="font-family:monospace;font-size:14px;font-weight:600;color:#fbbf24;text-align:center;padding:4px 0">' + step.formula + '</div>';
+      }
+      if (step.content) {
+        html += '<div style="color:#94a3b8;font-size:13px">' + step.content + '</div>';
+      }
       html += '</div>';
-      html += '<div class="step-body">';
-      if (step.formula) { html += '<div class="step-formula">' + step.formula + '</div>'; }
-      if (step.content) { html += '<div class="step-content">' + step.content + '</div>'; }
-      if (step.narration) { html += '<div class="step-narration">' + step.narration + '</div>'; }
-      html += '<div style="font-size:11px;color:#475569;text-align:right;margin-top:4px">⏱ ' + step.duration_sec + '秒</div>';
-      html += '</div></div>';
     }
     return html;
   }
