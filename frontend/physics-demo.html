@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>物理仿真动画 — 原理可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0b0e1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; flex-direction: column; gap: 10px; padding: 10px; }
+  .player { position: relative; width: 960px; height: 640px; background: #0a0e1a; border-radius: 12px; overflow: hidden; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+  canvas { display: block; width: 960px; height: 640px; }
+  #controls { display: flex; align-items: center; gap: 12px; width: 960px; padding: 8px 16px; background: rgba(0,0,0,0.6); border-radius: 8px; }
+  #controls button { background: none; border: none; color: #d0dfff; font-size: 20px; cursor: pointer; padding: 4px 12px; border-radius: 4px; }
+  #controls button:hover { background: rgba(255,215,0,0.1); }
+  #seekBar { flex: 1; height: 4px; -webkit-appearance: none; background: #2a3a5a; border-radius: 2px; outline: none; }
+  #seekBar::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #f6d365; cursor: pointer; }
+  #timeLabel { color: #9aa9c9; font-size: 13px; min-width: 100px; font-variant-numeric: tabular-nums; }
+  #info { color: #94a3b8; font-size: 12px; min-width: 160px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="player">
+  <canvas id="stage"></canvas>
+</div>
+<div id="controls">
+  <button id="playBtn">▶</button>
+  <input type="range" id="seekBar" min="0" max="100" value="0">
+  <span id="timeLabel">0:00 / 0:00</span>
+  <span id="info">斜面→粗糙面→拉力 · 实时物理仿真</span>
+</div>
+
+<script src="components.js"></script>
+<script src="engine.js"></script>
+<script>
+// 加载仿真数据并启动引擎
+var FRAMES = [];
+var ENGINE = null;
+
+fetch('/api/physics/simulate').then(function(r) { return r.json(); }).then(function(data) {
+  FRAMES = data.frames || [];
+  if (FRAMES.length === 0) throw new Error('无帧数据');
+
+  var total = FRAMES.length;
+  var fps = data.fps || 30;
+
+  // timeline 格式：一个片段，物体和HUD都通过layer渲染
+  var stageParams = {
+    type: 'slope+surface', angle: 37, slopeLength: 3,
+    scale: 110, originX: 80, originY: 520, mu: 0.4
+  };
+  var objParams = {
+    frames: FRAMES, scale: 110, originX: 80, originY: 520,
+    angle: 37, slopeLength: 3, objectSize: 22, mass: 2,
+    showVelocity: true
+  };
+  var hudParams = {
+    frames: FRAMES, panelX: 730, panelY: 50, showEnergy: true
+  };
+  var phaseParams = {
+    frames: FRAMES, x: 16, y: 16
+  };
+
+  var timelineData = {
+    meta: { totalFrames: total, fps: fps, width: 960, height: 640, title: '物理仿真' },
+    timeline: [{
+      startFrame: 0, endFrame: total - 1,
+      background: '#0f1923',
+      layers: [
+        { component: 'drawPhysicsStage', params: stageParams },
+        { component: 'drawPhaseLabel', params: phaseParams },
+        { component: 'drawPhysicsHUD', params: hudParams },
+        { component: 'drawPhysicsObject', params: objParams }
+      ]
+    }]
+  };
+
+  ENGINE = startEngine('stage', timelineData, {
+    onFrameUpdate: function(frame, total) {
+      var pct = total > 0 ? (frame / (total - 1) * 100) : 0;
+      document.getElementById('seekBar').value = pct;
+      var sec = Math.floor(frame / fps);
+      var totSec = Math.floor((total - 1) / fps);
+      document.getElementById('timeLabel').textContent =
+        String(Math.floor(sec/60)) + ':' + String(sec%60).padStart(2,'0') + ' / '
+        + String(Math.floor(totSec/60)) + ':' + String(totSec%60).padStart(2,'0');
+    }
+  });
+
+  // 控制
+  document.getElementById('playBtn').addEventListener('click', function() {
+    var s = ENGINE.getState();
+    if (s.isComplete) { ENGINE.seek(0); ENGINE.resume(); this.textContent = '⏸'; }
+    else if (s.isPaused) { ENGINE.resume(); this.textContent = '⏸'; }
+    else { ENGINE.pause(); this.textContent = '▶'; }
+  });
+  document.getElementById('seekBar').addEventListener('input', function() {
+    var tf = timelineData.meta.totalFrames;
+    var target = Math.round(this.value / 100 * tf);
+    if (ENGINE) ENGINE.seek(target);
+  });
+
+  ENGINE.resume();
+}).catch(function(err) {
+  alert('加载失败: ' + err.message);
+});
+</script>
+</body>
+</html>

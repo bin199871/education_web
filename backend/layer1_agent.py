@@ -418,6 +418,39 @@ class TextParser:
         return None
 
     @staticmethod
+    def _options_look_valid(options: list, stem: str) -> tuple:
+        """
+        验证提取的选项是否像真实的答案选项。
+
+        返回:
+            (is_valid: bool, reason: str)
+        """
+        if not options:
+            return False, "无选项"
+
+        # 检查选项文本长度（选择题选项通常较短）
+        for opt in options:
+            if len(opt["text"]) > 120:
+                return False, f"选项{opt['label']}过长({len(opt['text'])}字)，不像是选择题选项"
+
+        # 检查题干是否包含“求：”或“计算”等解答题标志
+        calc_markers = ["求：", "求:", "试求", "计算", "试计算", "试分析",
+                        "证明", "求证", "求解", "解答"]
+        for marker in calc_markers:
+            if marker in stem:
+                return False, f"题干包含“{marker}”，应该是解答题"
+
+        # 检查选项中是否包含“求：”等（典型计算题子问题）
+        for opt in options:
+            for marker in calc_markers:
+                if marker in opt["text"]:
+                    return False, f"选项{opt['label']}包含“{marker}”，不像是选择题选项"
+
+        # 检查选项位置：真正的选择题选项通常在题干之后、离题干近
+        # 如果第一个选项离题开头太远，可能是误匹配
+        return True, ""
+
+    @staticmethod
     def detect_question_type(parsed: dict, raw_text: str = "") -> str:
         """
         根据解析结果自动检测题型。
@@ -426,6 +459,19 @@ class TextParser:
         options = parsed.get("options", [])
         opt_count = len(options)
         parser_used = parsed.get("_parser_used", "none")
+        stem = parsed.get("stem", "")
+
+        # 0. 先检查选项是否有效——如果选项看起来不真实，强制归为解答题
+        if opt_count > 0:
+            is_valid, reason = TextParser._options_look_valid(options, stem)
+            if not is_valid:
+                # 尝试用解答题关键词二次确认
+                text = raw_text or stem
+                has_kw = any(kw in text for kw in TextParser.FREE_RESPONSE_KEYWORDS)
+                if has_kw:
+                    return "解答题"
+                # 改判为问答题，降低解析置信度
+                return "问答题"
 
         # 如果标准解析器检测到4个选项，肯定是选择题
         if opt_count == 4 and parser_used != "none":
@@ -444,12 +490,12 @@ class TextParser:
         # 检查是否有填空标记
         if opt_count == 0:
             for pattern in TextParser.FILL_BLANK_PATTERNS:
-                if pattern.search(raw_text or parsed.get("stem", "")):
+                if pattern.search(raw_text or stem):
                     return "填空题"
 
         # 检查是否有解答题关键词
         if opt_count == 0:
-            text = raw_text or parsed.get("stem", "")
+            text = raw_text or stem
             has_kw = any(kw in text for kw in TextParser.FREE_RESPONSE_KEYWORDS)
             has_condition = bool(re.search(
                 r'\d+\.?\d*\s*(m/s|kg|N|J|W|V|A|Ω|m|g|km|h|s)', text))
@@ -460,7 +506,13 @@ class TextParser:
         if opt_count >= 2:
             return "选择题"
 
-        # 以上都不是
+        # 以上都不是，默认识别
+        text = raw_text or stem
+        has_kw = any(kw in text for kw in TextParser.FREE_RESPONSE_KEYWORDS)
+        has_condition = bool(re.search(
+            r'\d+\.?\d*\s*(m/s|kg|N|J|W|V|A|Ω|m|g|km|h|s)', text))
+        if has_kw or has_condition:
+            return "解答题"
         return "选择题"
 
     @staticmethod
@@ -493,6 +545,11 @@ class TextParser:
             parsed = {"stem": best[0], "options": best[1],
                       "_parser_used": best_name, "_parser_confidence": best_conf}
             parsed["_question_type"] = TextParser.detect_question_type(parsed, text)
+            # 如果选项验证失败，大幅降低置信度，防止后续误判
+            qtype = parsed["_question_type"]
+            if qtype in ("解答题", "问答题"):
+                parsed["_parser_confidence"] = round(parsed["_parser_confidence"] * 0.3, 2)
+                parsed["options"] = []  # 清空误匹配的"选项"
             return parsed
 
         # 2. 尝试判断题

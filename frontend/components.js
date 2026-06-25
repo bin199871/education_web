@@ -1422,6 +1422,1662 @@ function staticLabel(ctx, params, frame) {
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
+/**
+ * drawForceArrow — 绘制受力箭头。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 起点X
+ * @param {number} params.cy - 起点Y
+ * @param {number} params.angle - 方向角度（度），0=向右，-90=向上
+ * @param {number} [params.length=60] - 箭头长度
+ * @param {string} [params.color='#ef4444'] - 颜色
+ * @param {string} [params.label=''] - 标签文字
+ * @param {number} [params.lineWidth=3] - 线宽
+ * @param {number} [params.opacity=1] - 透明度，支持动画
+ * @param {number} frame
+ */
+function drawForceArrow(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var angle = (params.angle || 0) * Math.PI / 180;
+  var length = params.length !== undefined ? params.length : 60;
+  var color = params.color || '#ef4444';
+  var label = params.label || '';
+  var lineWidth = params.lineWidth !== undefined ? params.lineWidth : 3;
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  // 箭杆
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(length, 0);
+  ctx.stroke();
+
+  // 箭头（三角形）
+  var headLen = 12 + lineWidth * 2;
+  var headWid = 6 + lineWidth;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(length, 0);
+  ctx.lineTo(length - headLen, -headWid);
+  ctx.lineTo(length - headLen, headWid);
+  ctx.closePath();
+  ctx.fill();
+
+  // 标签
+  if (label) {
+    ctx.fillStyle = color;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, length / 2, -8);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawFormulaBoard — 绘制公式板。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 锚点X
+ * @param {number} params.cy - 锚点Y
+ * @param {string} params.formula - 公式文本
+ * @param {Array} [params.variables] - 变量说明 [{ symbol, name, color }]
+ * @param {string} [params.bgColor='rgba(0,0,0,0.5)'] - 背景色
+ * @param {number} [params.opacity=1] - 透明度，支持动画
+ * @param {number} frame
+ */
+function drawFormulaBoard(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var formula = params.formula || '';
+  var variables = params.variables || [];
+  var bgColor = params.bgColor || 'rgba(0,0,0,0.5)';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+
+  // 公式大字
+  ctx.font = 'bold 36px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  var formulaWidth = ctx.measureText(formula).width;
+
+  // 背景框
+  var boxW = Math.max(formulaWidth + 60, 200);
+  var boxH = 60 + (variables.length > 0 ? variables.length * 24 + 16 : 0);
+  var boxX = cx - boxW / 2;
+  var boxY = cy - boxH / 2;
+
+  ctx.fillStyle = bgColor;
+  roundRectPath(ctx, boxX, boxY, boxW, boxH, 12);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,215,0,0.4)';
+  ctx.lineWidth = 1.5;
+  roundRectPath(ctx, boxX, boxY, boxW, boxH, 12);
+  ctx.stroke();
+
+  // 公式
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 36px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formula, cx, boxY + 32);
+
+  // 变量说明
+  if (variables.length > 0) {
+    ctx.font = '15px sans-serif';
+    ctx.textAlign = 'left';
+    for (var vi = 0; vi < variables.length; vi++) {
+      var v = variables[vi];
+      var vy = boxY + 60 + vi * 24;
+      ctx.fillStyle = v.color || '#ffffff';
+      ctx.fillText(v.symbol + ' = ' + (v.name || ''), boxX + 20, vy);
+    }
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawOptionCard — 绘制选项卡片。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 锚点X
+ * @param {number} params.cy - 锚点Y
+ * @param {string} params.label - 选项标签 A/B/C/D
+ * @param {string} params.text - 选项文本
+ * @param {boolean} [params.correct=false] - 是否正确
+ * @param {boolean} [params.showReason=false] - 是否显示解析
+ * @param {string} [params.reason=''] - 解析文本
+ * @param {number} [params.opacity=1] - 透明度，支持动画
+ * @param {number} frame
+ */
+function drawOptionCard(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var label = params.label || '?';
+  var text = params.text || '';
+  var correct = params.correct || false;
+  var showReason = params.showReason || false;
+  var reason = params.reason || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+
+  var isCorrect = !!correct;
+  var borderColor = isCorrect ? '#22c55e' : '#475569';
+  var bgColor = isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(30,41,59,0.8)';
+  var markColor = isCorrect ? '#22c55e' : '#ef4444';
+  var mark = isCorrect ? '✓' : '✗';
+
+  // 背景卡片
+  ctx.fillStyle = bgColor;
+  roundRectPath(ctx, cx - 280, cy - 20, 560, 40, 8);
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1.5;
+  roundRectPath(ctx, cx - 280, cy - 20, 560, 40, 8);
+  ctx.stroke();
+
+  // 标签圆圈
+  ctx.fillStyle = isCorrect ? '#22c55e' : '#334155';
+  ctx.beginPath();
+  ctx.arc(cx - 250, cy, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx - 250, cy);
+
+  // 对错标记
+  ctx.fillStyle = markColor;
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(mark, cx - 216, cy);
+
+  // 选项文本
+  ctx.fillStyle = isCorrect ? '#86efac' : '#cbd5e1';
+  ctx.font = '15px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, cx - 200, cy);
+
+  // 解析文字
+  if (showReason && reason) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(reason, cx - 200, cy + 22);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawTextBlock — 绘制文字区块。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 锚点X
+ * @param {number} params.cy - 锚点Y
+ * @param {string} params.text - 文字内容
+ * @param {string} [params.font='20px sans-serif'] - 字体
+ * @param {string} [params.color='#ffffff'] - 颜色
+ * @param {string} [params.align='center'] - 对齐方式
+ * @param {number} [params.opacity=1] - 透明度，支持动画
+ * @param {number} frame
+ */
+function drawTextBlock(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var text = params.text || '';
+  var font = params.font || '20px sans-serif';
+  var color = params.color || '#ffffff';
+  var align = params.align || 'center';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+
+  // 换行支持
+  var lines = text.split('\n');
+  var lineH = parseInt(font) * 1.4 || 28;
+  var startY = cy - (lines.length - 1) * lineH / 2;
+  for (var li = 0; li < lines.length; li++) {
+    ctx.fillText(lines[li], cx, startY + li * lineH);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawPendulum — 绘制单摆。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 悬挂点X
+ * @param {number} params.cy - 悬挂点Y
+ * @param {number} [params.length=120] - 摆长
+ * @param {number} [params.angle=0] - 摆角（弧度），支持sin动画
+ * @param {number} [params.bobSize=16] - 摆球大小
+ * @param {string} [params.bobColor='#fbbf24'] - 摆球颜色
+ * @param {string} [params.stringColor='#94a3b8'] - 摆线颜色
+ * @param {string} [params.label=''] - 标签
+ * @param {number} [params.opacity=1] - 透明度
+ * @param {number} frame
+ */
+function drawPendulum(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var length = params.length !== undefined ? params.length : 120;
+  var angle = resolveParam(params.angle, frame, 0);
+  var bobSize = params.bobSize !== undefined ? params.bobSize : 16;
+  var bobColor = params.bobColor || '#fbbf24';
+  var stringColor = params.stringColor || '#94a3b8';
+  var label = params.label || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  // 悬挂点
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 摆线
+  var bobX = Math.sin(angle) * length;
+  var bobY = Math.cos(angle) * length;
+  ctx.strokeStyle = stringColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(bobX, bobY);
+  ctx.stroke();
+
+  // 摆球
+  ctx.fillStyle = bobColor;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, bobSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 高光
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(bobX - bobSize * 0.25, bobY - bobSize * 0.25, bobSize * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (label) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, bobX, bobY + bobSize + 6);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawSpringOscillator — 绘制弹簧振子。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 弹簧顶端X
+ * @param {number} params.cy - 弹簧顶端Y
+ * @param {number} [params.mass=20] - 振子大小
+ * @param {string} [params.massColor='#60a5fa'] - 振子颜色
+ * @param {string} [params.springColor='#94a3b8'] - 弹簧颜色
+ * @param {number} [params.displacement=0] - 位移（像素），支持sin动画
+ * @param {number} [params.restLength=80] - 弹簧原长
+ * @param {number} [params.coils=8] - 弹簧圈数
+ * @param {string} [params.label=''] - 标签
+ * @param {number} [params.opacity=1] - 透明度
+ * @param {number} frame
+ */
+function drawSpringOscillator(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var mass = params.mass !== undefined ? params.mass : 20;
+  var massColor = params.massColor || '#60a5fa';
+  var springColor = params.springColor || '#94a3b8';
+  var displacement = resolveParam(params.displacement, frame, 0);
+  var restLength = params.restLength !== undefined ? params.restLength : 80;
+  var coils = params.coils !== undefined ? params.coils : 8;
+  var label = params.label || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  var totalLen = restLength + displacement;
+  var massTop = totalLen;
+  var massBottom = totalLen + mass;
+
+  // 悬挂架
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillRect(-6, -2, 12, 4);
+  ctx.fillRect(-2, -6, 4, 12);
+
+  // 弹簧（之字形折线）
+  ctx.strokeStyle = springColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  var segs = coils * 2;
+  var segH = restLength / segs;
+  for (var ci = 0; ci <= segs; ci++) {
+    var sx = (ci % 2 === 0) ? 0 : ((ci % 4 === 1) ? 10 : -10);
+    ctx.lineTo(sx, segH * ci);
+  }
+  ctx.stroke();
+
+  // 振子
+  var my = massTop;
+  ctx.fillStyle = massColor;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(-mass/2, my, mass, mass);
+  ctx.strokeRect(-mass/2, my, mass, mass);
+
+  if (label) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, 0, massBottom + 6);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawInclinedPlane — 绘制斜面与物体。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 斜面底部X
+ * @param {number} params.cy - 斜面底部Y
+ * @param {number} [params.angle=30] - 斜面角度（度）
+ * @param {number} [params.length=200] - 斜面长度
+ * @param {number} [params.objectSize=24] - 物体大小
+ * @param {string} [params.objectColor='#60a5fa'] - 物体颜色
+ * @param {number} [params.objectPosition=0.5] - 物体在斜面上的位置 0-1
+ * @param {string} [params.label=''] - 物体标签
+ * @param {boolean} [params.showForces=false] - 显示受力
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawInclinedPlane(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var angle = (params.angle || 30) * Math.PI / 180;
+  var length = params.length !== undefined ? params.length : 200;
+  var objSize = params.objectSize !== undefined ? params.objectSize : 24;
+  var objectColor = params.objectColor || '#60a5fa';
+  var objPos = params.objectPosition !== undefined ? params.objectPosition : 0.5;
+  var label = params.label || '';
+  var showForces = params.showForces || false;
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  var topX = -Math.cos(angle) * length;
+  var topY = -Math.sin(angle) * length;
+
+  // 斜面
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(topX, topY);
+  ctx.lineTo(topX, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 物体
+  var objDist = objPos * length;
+  var objX = -Math.cos(angle) * objDist;
+  var objY = -Math.sin(angle) * objDist;
+  var halfSize = objSize / 2;
+
+  ctx.save();
+  ctx.translate(objX, objY);
+  ctx.rotate(-angle);
+  ctx.fillStyle = objectColor;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(-halfSize, -halfSize, objSize, objSize);
+  ctx.strokeRect(-halfSize, -halfSize, objSize, objSize);
+  if (label) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, 0, -halfSize - 4);
+  }
+  ctx.restore();
+
+  // 受力箭头
+  if (showForces) {
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(objX, objY);
+    ctx.lineTo(objX, objY + 50);
+    ctx.stroke();
+    ctx.fillStyle = '#ef4444';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('G', objX, objY + 56);
+
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 2;
+    var nAngle = -angle + Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(objX, objY);
+    ctx.lineTo(objX + Math.cos(nAngle) * 35, objY + Math.sin(nAngle) * 35);
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    ctx.fillText('N', objX + Math.cos(nAngle) * 40, objY + Math.sin(nAngle) * 40);
+  }
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('θ=' + (params.angle || 30) + '°', 4, 4);
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawCircuitComponent — 电路元件（电池、电阻、灯泡、开关、电表）。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 中心X
+ * @param {number} params.cy - 中心Y
+ * @param {string} params.type - battery|resistor|bulb|switch|ammeter|voltmeter|wire
+ * @param {string} [params.orientation='horizontal'] - horizontal|vertical
+ * @param {string} [params.state='closed'] - 开关状态: open|closed
+ * @param {boolean} [params.lit=false] - 灯泡发光
+ * @param {string} [params.label=''] - 标签
+ * @param {number} [params.scale=1] - 缩放
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawCircuitComponent(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var type = params.type || 'resistor';
+  var orientation = params.orientation || 'horizontal';
+  var state = params.state || 'closed';
+  var lit = params.lit || false;
+  var label = params.label || '';
+  var scale = params.scale !== undefined ? params.scale : 1;
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  var isH = orientation === 'horizontal';
+
+  if (type === 'wire') {
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(isH ? -30 : 0, isH ? 0 : -30);
+    ctx.lineTo(isH ? 30 : 0, isH ? 0 : 30);
+    ctx.stroke();
+  }
+  else if (type === 'battery') {
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (isH) {
+      ctx.moveTo(-25, 0); ctx.lineTo(-3, 0);
+      ctx.moveTo(3, 0); ctx.lineTo(25, 0);
+      ctx.moveTo(0, -12); ctx.lineTo(0, 12);
+      ctx.fillStyle = '#ef4444'; ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+', -32, 0);
+    } else {
+      ctx.moveTo(0, -25); ctx.lineTo(0, -3);
+      ctx.moveTo(0, 3); ctx.lineTo(0, 25);
+      ctx.moveTo(-12, 0); ctx.lineTo(12, 0);
+      ctx.fillStyle = '#ef4444'; ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+', 0, -32);
+    }
+    ctx.stroke();
+  }
+  else if (type === 'resistor') {
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    // 矩形电阻
+    ctx.strokeRect(isH ? -15 : -8, isH ? -8 : -15, isH ? 30 : 16, isH ? 16 : 30);
+    ctx.beginPath();
+    if (isH) {
+      ctx.moveTo(-28, 0); ctx.lineTo(-15, 0);
+      ctx.moveTo(15, 0); ctx.lineTo(28, 0);
+    } else {
+      ctx.moveTo(0, -28); ctx.lineTo(0, -15);
+      ctx.moveTo(0, 15); ctx.lineTo(0, 28);
+    }
+    ctx.stroke();
+  }
+  else if (type === 'bulb') {
+    ctx.strokeStyle = lit ? '#fbbf24' : '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke();
+    if (lit) {
+      ctx.fillStyle = 'rgba(251,191,36,0.15)';
+      ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.moveTo(-8, -8); ctx.lineTo(8, 8);
+    ctx.moveTo(8, -8); ctx.lineTo(-8, 8);
+    ctx.stroke();
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (isH) { ctx.moveTo(-28, 0); ctx.lineTo(-14, 0); ctx.moveTo(14, 0); ctx.lineTo(28, 0); }
+    else { ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.moveTo(0, 14); ctx.lineTo(0, 28); }
+    ctx.stroke();
+  }
+  else if (type === 'switch') {
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    if (isH) {
+      ctx.beginPath(); ctx.moveTo(-25, 0); ctx.lineTo(-10, 0);
+      if (state === 'closed') ctx.lineTo(25, 0);
+      else ctx.lineTo(25, -18);
+      ctx.stroke();
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath(); ctx.arc(25, 0, 3, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(0, -10);
+      if (state === 'closed') ctx.lineTo(0, 25);
+      else ctx.lineTo(18, 25);
+      ctx.stroke();
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath(); ctx.arc(0, 25, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  else if (type === 'ammeter' || type === 'voltmeter') {
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(type === 'ammeter' ? 'A' : 'V', 0, 1);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (isH) { ctx.moveTo(-28, 0); ctx.lineTo(-14, 0); ctx.moveTo(14, 0); ctx.lineTo(28, 0); }
+    else { ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.moveTo(0, 14); ctx.lineTo(0, 28); }
+    ctx.stroke();
+  }
+
+  if (label) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, 0, isH ? 24 : -34);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawGraph — 绘制坐标系与数据曲线。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 原点X
+ * @param {number} params.cy - 原点Y
+ * @param {number} [params.width=200] - 轴宽度
+ * @param {number} [params.height=160] - 轴高度
+ * @param {string} [params.xLabel=''] - X轴标签
+ * @param {string} [params.yLabel=''] - Y轴标签
+ * @param {boolean} [params.showGrid=false] - 网格
+ * @param {Array} [params.lines=[]] - 数据线 [{points:[{x,y}], color, label}]
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawGraph(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var w = params.width !== undefined ? params.width : 200;
+  var h = params.height !== undefined ? params.height : 160;
+  var xLabel = params.xLabel || '';
+  var yLabel = params.yLabel || '';
+  var showGrid = params.showGrid || false;
+  var lines = params.lines || [];
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  // 坐标轴
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-8, 0); ctx.lineTo(w + 8, 0);
+  ctx.moveTo(0, h + 8); ctx.lineTo(0, -8);
+  ctx.stroke();
+
+  // 箭头
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath(); ctx.moveTo(w + 8, 0); ctx.lineTo(w, -4); ctx.lineTo(w, 4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(-4, 0); ctx.lineTo(4, 0); ctx.closePath(); ctx.fill();
+
+  if (showGrid) {
+    ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+    ctx.lineWidth = 0.5;
+    for (var gi = 1; gi < 5; gi++) {
+      var gx = gi * w / 5, gy = gi * h / 5;
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h);
+      ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    }
+  }
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  if (xLabel) ctx.fillText(xLabel, w / 2, h + 10);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  if (yLabel) ctx.fillText(yLabel, -14, -h / 2);
+
+  for (var li = 0; li < lines.length; li++) {
+    var line = lines[li];
+    var pts = line.points || [];
+    if (pts.length < 2) continue;
+    ctx.strokeStyle = line.color || '#60a5fa';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, -pts[0].y);
+    for (var pi = 1; pi < pts.length; pi++) ctx.lineTo(pts[pi].x, -pts[pi].y);
+    ctx.stroke();
+    for (var pi = 0; pi < pts.length; pi++) {
+      ctx.fillStyle = line.color || '#60a5fa';
+      ctx.beginPath(); ctx.arc(pts[pi].x, -pts[pi].y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    if (line.label && pts.length > 0) {
+      ctx.fillStyle = line.color || '#60a5fa';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText(line.label, pts[pts.length-1].x + 6, -pts[pts.length-1].y);
+    }
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawLever — 绘制杠杆。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 支点X
+ * @param {number} params.cy - 支点Y
+ * @param {number} [params.length=180] - 杠杆总长
+ * @param {number} [params.angle=0] - 倾斜角（弧度），支持sin
+ * @param {number} [params.leftMass=20] - 左侧物体大小
+ * @param {number} [params.rightMass=20] - 右侧物体大小
+ * @param {string} [params.leftColor='#60a5fa']
+ * @param {string} [params.rightColor='#f472b6']
+ * @param {string} [params.leftLabel='']
+ * @param {string} [params.rightLabel='']
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawLever(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var length = params.length !== undefined ? params.length : 180;
+  var angle = resolveParam(params.angle, frame, 0);
+  var leftMass = params.leftMass !== undefined ? params.leftMass : 20;
+  var rightMass = params.rightMass !== undefined ? params.rightMass : 20;
+  var leftColor = params.leftColor || '#60a5fa';
+  var rightColor = params.rightColor || '#f472b6';
+  var leftLabel = params.leftLabel || '';
+  var rightLabel = params.rightLabel || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  // 支点
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-10, 16); ctx.lineTo(10, 16); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 16); ctx.lineTo(0, 28); ctx.stroke();
+
+  // 杠杆臂
+  var halfLen = length / 2;
+  var cosA = Math.cos(angle), sinA = Math.sin(angle);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-halfLen * cosA, -halfLen * sinA);
+  ctx.lineTo(halfLen * cosA, halfLen * sinA);
+  ctx.stroke();
+
+  // 左侧物体
+  var lx = -halfLen * cosA, ly = -halfLen * sinA;
+  ctx.fillStyle = leftColor;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(lx - leftMass/2, ly + 8, leftMass, leftMass);
+  ctx.strokeRect(lx - leftMass/2, ly + 8, leftMass, leftMass);
+  if (leftLabel) {
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(leftLabel, lx, ly + leftMass + 12);
+  }
+
+  // 右侧物体
+  var rx = halfLen * cosA, ry = halfLen * sinA;
+  ctx.fillStyle = rightColor;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(rx - rightMass/2, ry + 8, rightMass, rightMass);
+  ctx.strokeRect(rx - rightMass/2, ry + 8, rightMass, rightMass);
+  if (rightLabel) {
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(rightLabel, rx, ry + rightMass + 12);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawContainer — 绘制容器与液体。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 容器中心X
+ * @param {number} params.cy - 容器底部Y
+ * @param {number} [params.width=100] - 容器宽度
+ * @param {number} [params.height=120] - 容器高度
+ * @param {number} [params.liquidLevel=0.5] - 液面 0-1
+ * @param {string} [params.liquidColor='rgba(66,165,245,0.3)']
+ * @param {number} [params.objectSize=0] - 浸没物体大小（0=无）
+ * @param {string} [params.objectColor='#fbbf24']
+ * @param {string} [params.label=''] - 标签
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawContainer(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var w = params.width !== undefined ? params.width : 100;
+  var h = params.height !== undefined ? params.height : 120;
+  var liquidLevel = params.liquidLevel !== undefined ? params.liquidLevel : 0.5;
+  var liquidColor = params.liquidColor || 'rgba(66,165,245,0.3)';
+  var objSize = params.objectSize !== undefined ? params.objectSize : 0;
+  var objectColor = params.objectColor || '#fbbf24';
+  var label = params.label || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  // 容器壁
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(-w/2, -h, w, h);
+
+  // 液体
+  var liquidH = h * liquidLevel;
+  ctx.fillStyle = liquidColor;
+  ctx.fillRect(-w/2 + 3, -liquidH, w - 6, liquidH);
+
+  // 液面线
+  ctx.strokeStyle = 'rgba(66,165,245,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-w/2 + 3, -liquidH);
+  ctx.lineTo(w/2 - 3, -liquidH);
+  ctx.stroke();
+
+  // 浸没物体
+  if (objSize > 0) {
+    var objY = params.objectY !== undefined ? params.objectY : -liquidH + objSize/2;
+    ctx.fillStyle = objectColor;
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(-objSize/2, objY - objSize/2, objSize, objSize);
+    ctx.strokeRect(-objSize/2, objY - objSize/2, objSize, objSize);
+  }
+
+  if (label) {
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(label, 0, 6);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawLightRay — 绘制光线（反射/折射）。
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} params
+ * @param {number} params.cx - 入射点X
+ * @param {number} params.cy - 入射点Y
+ * @param {number} [params.incidentAngle=45] - 入射角（度）
+ * @param {number} [params.reflectAngle=45] - 反射角（度）
+ * @param {number} [params.refractAngle=0] - 折射角（度，0=无）
+ * @param {number} [params.rayLength=80] - 光线长度
+ * @param {string} [params.incidentColor='#fbbf24']
+ * @param {string} [params.reflectColor='#34d399']
+ * @param {string} [params.refractColor='#60a5fa']
+ * @param {boolean} [params.showNormal=true] - 法线
+ * @param {string} [params.surfaceLabel=''] - 介面标签
+ * @param {number} [params.opacity=1]
+ * @param {number} frame
+ */
+function drawLightRay(ctx, params, frame) {
+  ctx.save();
+  var cx = params.cx || 0;
+  var cy = params.cy || 0;
+  var iAngle = params.incidentAngle || 45;
+  var rAngle = params.reflectAngle !== undefined ? params.reflectAngle : 45;
+  var refrAngle = params.refractAngle !== undefined ? params.refractAngle : 0;
+  var rayLen = params.rayLength !== undefined ? params.rayLength : 80;
+  var incColor = params.incidentColor || '#fbbf24';
+  var refColor = params.reflectColor || '#34d399';
+  var refrColor = params.refractColor || '#60a5fa';
+  var showNormal = params.showNormal !== false;
+  var surfaceLabel = params.surfaceLabel || '';
+  var opacity = resolveParam(params.opacity, frame, 1);
+
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  ctx.translate(cx, cy);
+
+  // 法线
+  if (showNormal) {
+    ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(0, -rayLen); ctx.lineTo(0, rayLen); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(148,163,184,0.5)';
+    ctx.font = '11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('N', 4, -4);
+  }
+
+  // 介面
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-rayLen, 0); ctx.lineTo(rayLen, 0); ctx.stroke();
+  if (surfaceLabel) {
+    ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText(surfaceLabel, rayLen, 4);
+  }
+
+  // 绘制光线和箭头（简化版，不含复杂箭头）
+  var iRad = iAngle * Math.PI / 180;
+  ctx.strokeStyle = incColor;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-Math.sin(iRad) * rayLen, -Math.cos(iRad) * rayLen);
+  ctx.stroke();
+
+  var refRad = rAngle * Math.PI / 180;
+  ctx.strokeStyle = refColor;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(Math.sin(refRad) * rayLen, -Math.cos(refRad) * rayLen);
+  ctx.stroke();
+
+  if (refrAngle > 0) {
+    var refrRad = refrAngle * Math.PI / 180;
+    ctx.strokeStyle = refrColor;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.sin(refrRad) * rayLen * 0.8, Math.cos(refrRad) * rayLen * 0.8);
+    ctx.stroke();
+  }
+
+  // 角度标注
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(iAngle + '°', -30, -16);
+
+  ctx.restore();
+}
+
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawPhysicsStage — 绘制物理场景（斜面、水平面、轨道等）。
+ */
+function drawPhysicsStage(ctx, params, frame) {
+  ctx.save();
+  var type = params.type || 'slope+surface';
+  var angle = params.angle || 37;
+  var slopeLen = params.slopeLength || 3;
+  var s = params.scale || 100;
+  var ox = params.originX || 80;
+  var oy = params.originY || 500;
+  var showLabels = params.showLabels !== false;
+  var opacity = resolveParam(params.opacity, frame, 1);
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+
+  var aRad = angle * Math.PI / 180;
+  var slopeEndX = ox + slopeLen * s * Math.cos(aRad);
+  var slopeEndY = oy - slopeLen * s * Math.sin(aRad);
+  var mu = params.mu || 0.4;
+
+  if (type === 'slope+surface' || type === 'slope') {
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(slopeEndX, slopeEndY);
+    ctx.lineTo(slopeEndX, oy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  if (type === 'slope+surface' || type === 'surface') {
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(slopeEndX, oy);
+    ctx.lineTo(slopeEndX + 400, oy);
+    ctx.stroke();
+    ctx.fillStyle = '#334155';
+    for (var ri = 0; ri < 20; ri++) {
+      ctx.fillRect(slopeEndX + 15 + ri * 18, oy + 2, 6, 4);
+    }
+  }
+
+  if (showLabels && (type === 'slope+surface' || type === 'slope')) {
+    ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    var arcR = 40;
+    ctx.beginPath();
+    ctx.arc(ox, oy, arcR, -aRad, 0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('θ=' + angle + '°', ox + arcR * 0.6, oy + 4);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('L=' + slopeLen + 'm', (ox + slopeEndX) / 2, slopeEndY - 6);
+  }
+
+  if (type === 'slope+surface') {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('μ=' + mu.toFixed(1), slopeEndX + 10, oy + 10);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawPhysicsObject — 绘制并移动物理对象。
+ */
+function drawPhysicsObject(ctx, params, frame) {
+  ctx.save();
+  var frames = params.frames || [];
+  if (frames.length === 0) { ctx.restore(); return; }
+  var scale = params.scale || 100;
+  var ox = params.originX || 80;
+  var oy = params.originY || 500;
+  var angle = params.angle || 37;
+  var slopeLen = params.slopeLength || 3;
+  var size = params.objectSize || 24;
+  var color = params.objectColor || '#60a5fa';
+  var label = params.label || '';
+  var showVel = params.showVelocity || false;
+  var mass = params.mass || 2;
+  var opacity = resolveParam(params.opacity, frame, 1);
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+
+  var idx = Math.min(frame, frames.length - 1);
+  var data = frames[idx];
+  if (!data) { ctx.restore(); return; }
+
+  var aRad = angle * Math.PI / 180;
+  var slopeEndX = ox + slopeLen * scale * Math.cos(aRad);
+  var screenX, screenY;
+  if (data.phase === 'slope') {
+    screenX = ox + data.x * scale * Math.cos(aRad);
+    screenY = oy - data.x * scale * Math.sin(aRad);
+  } else {
+    screenX = slopeEndX + (data.x - slopeLen) * scale;
+    screenY = oy;
+  }
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(screenX - size/2 + 3, screenY - size/2 + 3, size, size);
+  ctx.fillStyle = color;
+  ctx.shadowColor = color + '44';
+  ctx.shadowBlur = 12;
+  ctx.fillRect(screenX - size/2, screenY - size/2, size, size);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(screenX - size/2, screenY - size/2, size, size);
+
+  var lbl = label || ('m=' + mass + 'kg');
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  if (data.phase === 'slope') {
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(lbl, screenX, screenY - size/2 - 4);
+  } else {
+    ctx.textBaseline = 'top';
+    ctx.fillText(lbl, screenX, screenY + size/2 + 4);
+  }
+
+  if (showVel && data.v > 0.05) {
+    var arrowLen = Math.min(data.v * 12, 80);
+    var startX = screenX + size/2;
+    var startY = screenY;
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(startX + arrowLen, startY);
+    ctx.stroke();
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.moveTo(startX + arrowLen, startY);
+    ctx.lineTo(startX + arrowLen - 8, startY - 4);
+    ctx.lineTo(startX + arrowLen - 8, startY + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#60a5fa';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('v=' + data.v.toFixed(1) + 'm/s', startX + arrowLen/2, startY - 6);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawPhysicsHUD — 显示物理量数据面板。
+ */
+function drawPhysicsHUD(ctx, params, frame) {
+  ctx.save();
+  var frames = params.frames || [];
+  if (frames.length === 0) { ctx.restore(); return; }
+  var px = params.panelX || 20;
+  var py = params.panelY || 20;
+  var showEnergy = params.showEnergy || false;
+  var mode = params.mode || 'electric_pendulum';
+  var opacity = resolveParam(params.opacity, frame, 1);
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+
+  var idx = Math.min(frame, frames.length - 1);
+  var d = frames[idx];
+  if (!d) { ctx.restore(); return; }
+
+  var panelH = showEnergy ? 210 : 150;
+  ctx.fillStyle = 'rgba(10,15,25,0.82)';
+  roundRectPath(ctx, px, py, 200, panelH, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  roundRectPath(ctx, px, py, 200, panelH, 8);
+  ctx.stroke();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('■ 实时数据', px + 12, py + 8);
+
+  var items = [];
+  if (mode === 'electric_pendulum') {
+    items = [
+      {label:'角度 θ', value:(d.theta_deg || Math.abs(d.theta || 0) * 180 / Math.PI).toFixed(1) + '°', color:'#fbbf24'},
+      {label:'速度 v', value:(d.v || 0).toFixed(2) + ' m/s', color:'#60a5fa'},
+      {label:'高度 h', value:(d.y || 0).toFixed(3) + ' m', color:'#34d399'},
+      {label:'F电', value:((params.q || 5e-4) * (params.E || 2000)).toFixed(2) + ' N', color:'#ef4444'},
+      {label:'G', value:((params.mass || 0.1) * (params.g || 10)).toFixed(2) + ' N', color:'#3b82f6'},
+    ];
+  } else {
+    items = [
+      {label:'阶段', value:d.phase || 'unknown', color:'#f472b6'},
+      {label:'位置', value:(d.x||0).toFixed(2) + ' m', color:'#fbbf24'},
+      {label:'速度', value:(d.v||0).toFixed(2) + ' m/s', color:'#60a5fa'},
+      {label:'加速度', value:(d.a||0).toFixed(2) + ' m/s²', color:'#a78bfa'},
+    ];
+    if (showEnergy) {
+      items.push({label:'动能', value:(d.Ek||0).toFixed(1)+' J', color:'#34d399'});
+      items.push({label:'势能', value:(d.Ep||0).toFixed(1)+' J', color:'#fbbf24'});
+    }
+  }
+
+  for (var ii = 0; ii < items.length; ii++) {
+    var item = items[ii];
+    var iy = py + 30 + ii * 22;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(item.label, px + 14, iy);
+    ctx.fillStyle = item.color;
+    ctx.textAlign = 'right';
+    ctx.fillText(item.value, px + 188, iy);
+  }
+
+  // 能量条（三色：动能/重力势能/电势能）
+  if (showEnergy && mode === 'electric_pendulum') {
+    var Ek = d.Ek || 0;
+    var Ep_grav = d.Ep_grav || d.Ep || 0;
+    var Ep_elec = d.Ep_elec || d.Ep_electric || 0;
+    var totalE = Ek + Ep_grav + Ep_elec;
+    if (totalE > 0) {
+      var barY = py + panelH - 50;
+      var barW = 176;
+      var barH = 14;
+      ctx.fillStyle = 'rgba(50,60,80,0.4)';
+      roundRectPath(ctx, px + 12, barY, barW, barH, 5);
+      ctx.fill();
+      var eW = Math.max(2, (Ep_elec / totalE) * barW);
+      ctx.fillStyle = '#3b82f6';
+      roundRectPath(ctx, px + 12, barY, eW, barH, 5);
+      ctx.fill();
+      var kW = Math.max(2, (Ek / totalE) * barW);
+      ctx.fillStyle = '#34d399';
+      roundRectPath(ctx, px + 12 + eW, barY, kW, barH, 0);
+      ctx.fill();
+      if (eW + kW >= barW - 2) { roundRectPath(ctx, px + 12 + eW, barY, kW, barH, 5); ctx.fill(); }
+      var gW = Math.max(2, (Ep_grav / totalE) * barW);
+      ctx.fillStyle = '#f97316';
+      roundRectPath(ctx, px + 12 + eW + kW, barY, gW, barH, 0);
+      ctx.fill();
+      roundRectPath(ctx, px + 12 + eW + kW, barY, gW, barH, gW > 4 ? 5 : 0);
+      ctx.fill();
+      // 标签
+      ctx.fillStyle = '#64748b';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText('⚡电势', px + 14, barY - 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('动能', px + 12 + eW + kW/2, barY - 2);
+      ctx.textAlign = 'right';
+      ctx.fillText('重力势', px + 12 + barW, barY - 2);
+      // 总能量值
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('E总 = ' + totalE.toFixed(2) + ' J（守恒）', px + 12 + barW/2, barY + barH + 12);
+    }
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/**
+ * drawPhaseLabel — 显示当前阶段标签。
+ */
+function drawPhaseLabel(ctx, params, frame) {
+  ctx.save();
+  var frames = params.frames || [];
+  if (frames.length === 0) { ctx.restore(); return; }
+  var x = params.x || 16;
+  var y = params.y || 16;
+  var opacity = resolveParam(params.opacity, frame, 1);
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  var idx = Math.min(frame, frames.length - 1);
+  var d = frames[idx];
+  if (!d || !d.phase) { ctx.restore(); return; }
+  var phaseNames = {'slope':'斜面加速下滑','rough_surface':'粗糙面减速','horizontal_pull':'水平拉力加速'};
+  var pn = phaseNames[d.phase] || d.phase;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRectPath(ctx, x, y, 200, 32, 6);
+  ctx.fill();
+  ctx.fillStyle = '#f6d365';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('▶ ' + pn, x + 14, y + 16);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('帧' + d.frame, x + 188, y + 16);
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/**
+ * drawElectricFieldBg — 绘制水平匀强电场背景（箭头指示线）。
+ */
+function drawElectricFieldBg(ctx, params, frame) {
+  ctx.save();
+  var opacity = resolveParam(params.opacity, frame, 1);
+  ctx.globalAlpha = clamp(opacity, 0, 1);
+  var fieldColor = params.fieldColor || 'rgba(59,130,246,0.05)';
+  var arrowColor = params.arrowColor || 'rgba(59,130,246,0.20)';
+  var cx = params.cx || 480;
+  var cy = params.cy || 320;
+  var w = params.width || 800;
+  var h = params.height || 500;
+  var spacing = params.spacing || 70;
+  var direction = params.direction || 'right';
+  var grad = ctx.createLinearGradient(cx - w/2, cy, cx + w/2, cy);
+  grad.addColorStop(0, 'rgba(59,130,246,0.02)');
+  grad.addColorStop(0.5, 'rgba(59,130,246,0.06)');
+  grad.addColorStop(1, 'rgba(59,130,246,0.02)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - w/2, cy - h/2, w, h);
+  var dir = direction === 'right' ? 1 : -1;
+  var startX = cx - w/2 + 20;
+  var endX = cx + w/2 - 20;
+  var arrowLen = 12;
+  for (var yy = cy - h/2 + 30; yy < cy + h/2 - 20; yy += spacing) {
+    ctx.strokeStyle = arrowColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 12]);
+    ctx.lineDashOffset = -frame * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(startX, yy);
+    ctx.lineTo(endX, yy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+    for (var ax = startX + 30; ax < endX - 20; ax += 80) {
+      ctx.fillStyle = arrowColor;
+      ctx.beginPath();
+      ctx.moveTo(ax + arrowLen * dir, yy);
+      ctx.lineTo(ax + arrowLen * dir - 8 * dir, yy - 4);
+      ctx.lineTo(ax + arrowLen * dir - 8 * dir, yy + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = 'rgba(59,130,246,0.35)';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('E', endX + 20, cy - h/2 + 4);
+  ctx.fillStyle = 'rgba(59,130,246,0.15)';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('匀强电场 → → → → →', cx, cy - h/2 + 22);
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/**
+ * drawElectricPendulum — 绘制电场中的带电单摆。
+ * 从 params.frames[frame] 中获取 theta、v、Ek 等物理量。
+ */
+function drawElectricPendulum(ctx, params, frame) {
+  ctx.save();
+  var frames = params.frames || [];
+  if (frames.length === 0) { ctx.restore(); return; }
+  var idx = Math.min(frame, frames.length - 1);
+  var d = frames[idx];
+  if (!d) { ctx.restore(); return; }
+
+  var theta = d.theta || 0;
+  var cx = params.cx || 480;
+  var cy = params.cy || 80;
+  var L = params.length || 120;
+  var bobR = params.bobSize || 16;
+  var bobColor = params.bobColor || '#fbbf24';
+  var showAngle = params.showAngle !== false;
+  var showForce = params.showForce || false;
+  var showVelocity = params.showVelocity || false;
+  var mass = params.mass || 0.1;
+  var q = params.q || 5e-4;
+  var E = params.E || 2000;
+  var g = params.g || 10;
+  var scale = params.scale || 1;
+
+  // ---- 布局 ----
+  var bobX = cx + L * scale * Math.sin(theta);
+  var bobY = cy + L * scale * Math.cos(theta);
+
+  // ---- 虚线圆弧轨迹 ----
+  ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, L * scale, 0, Math.PI, false);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ---- 悬挂点 ----
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- 天花板 ----
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 100, cy);
+  ctx.lineTo(cx + 100, cy);
+  ctx.stroke();
+  // 天花板小斜线
+  for (var ti = -80; ti <= 80; ti += 20) {
+    ctx.beginPath();
+    ctx.moveTo(cx + ti, cy);
+    ctx.lineTo(cx + ti - 4, cy + 6);
+    ctx.stroke();
+  }
+
+  // ---- 摆线 ----
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(bobX, bobY);
+  ctx.stroke();
+
+  // 摆长标注
+  ctx.fillStyle = 'rgba(148,163,184,0.3)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('L=' + (params._realLength || '1.0') + 'm', (cx + bobX) / 2, (cy + bobY) / 2 - 4);
+
+  // ---- 角度弧 ----
+  if (showAngle && Math.abs(theta) > 0.01) {
+    var arcR = 50;
+    var arcEnd = theta < 0 ? -Math.abs(theta) : Math.abs(theta);
+    // 弧线（实线 + 半透明）
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, arcR, -0.08, arcEnd > 0 ? arcEnd : -arcEnd);
+    ctx.stroke();
+    // θ 标签
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    var labelX = cx + arcR * 0.6 * (theta > 0 ? 1 : -1);
+    var labelY = cy + arcR * 0.6 + 4;
+    ctx.fillText('θ', labelX, labelY);
+    // θ 数值（靠近球的位置）
+    var degLabel = (Math.abs(theta) * 180 / Math.PI).toFixed(1) + '°';
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(degLabel, bobX - 30, bobY - 20);
+  }
+
+  // ---- 摆球 ----
+  ctx.shadowColor = bobColor + '66';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = bobColor;
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, bobR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // 边框
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, bobR, 0, Math.PI * 2);
+  ctx.stroke();
+  // 高光
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(bobX - bobR*0.25, bobY - bobR*0.25, bobR*0.35, 0, Math.PI*2);
+  ctx.fill();
+  // "+" 正电标记
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('+', bobX, bobY);
+
+  // ---- 速度箭头（切线方向） ----
+  if (showVelocity && d.v != null && d.v > 0.05) {
+    var vScale = 6;
+    var vx = -Math.sin(theta) * d.v * vScale;
+    var vy = Math.cos(theta) * d.v * vScale;
+    var tipX = bobX + vx;
+    var tipY = bobY + vy;
+    // 箭头线
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(bobX, bobY);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    // 箭头头部
+    var aLen = 8;
+    var aAngle = Math.atan2(vy, vx);
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - aLen * Math.cos(aAngle - 0.4), tipY - aLen * Math.sin(aAngle - 0.4));
+    ctx.lineTo(tipX - aLen * Math.cos(aAngle + 0.4), tipY - aLen * Math.sin(aAngle + 0.4));
+    ctx.closePath();
+    ctx.fill();
+    // v 标签
+    ctx.fillStyle = '#60a5fa';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    var vLabelX = tipX + 8;
+    var vLabelY = tipY - 4;
+    ctx.fillText('v', vLabelX, vLabelY);
+    // 速度值
+    ctx.fillStyle = 'rgba(96,165,250,0.5)';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(d.v.toFixed(2) + 'm/s', vLabelX + 16, vLabelY);
+  }
+
+  // ---- 受力分析箭头（实线精美箭头） ----
+  if (showForce) {
+    var arrowLenBase = 50;  // 基础箭头像素长度
+    var fArrowColor = '#ef4444';  // 红色：重力
+    var eArrowColor = '#3b82f6';  // 蓝色：电场力
+    var rArrowColor = '#f97316';  // 橙色：合力
+
+    // 计算各力的大小比例
+    var mg_val = mass * g;
+    var qE_val = q * E;
+    var fMax = Math.max(mg_val, qE_val, 0.01);
+    var gLen = (mg_val / fMax) * arrowLenBase * 0.9 + 10;
+    var eLen = (qE_val / fMax) * arrowLenBase * 0.9 + 10;
+    var rLen = Math.sqrt(mg_val*mg_val + qE_val*qE_val) / fMax * arrowLenBase * 0.9 + 10;
+
+    // 辅助函数：画箭头
+    function drawForceArrow(ctx2, fromX, fromY, toX, toY, color, label, labelColor) {
+      var dx = toX - fromX, dy = toY - fromY;
+      var angle = Math.atan2(dy, dx);
+      var len = Math.sqrt(dx*dx + dy*dy);
+      if (len < 1) return;
+      // 箭头主体（粗实线）
+      ctx2.strokeStyle = color;
+      ctx2.lineWidth = 2.5;
+      ctx2.globalAlpha = 0.85;
+      ctx2.beginPath();
+      ctx2.moveTo(fromX, fromY);
+      ctx2.lineTo(toX, toY);
+      ctx2.stroke();
+      ctx2.globalAlpha = 1;
+      // 箭头头部（实心三角）
+      var headLen = 10, headAngle = 0.5;
+      ctx2.fillStyle = color;
+      ctx2.beginPath();
+      ctx2.moveTo(toX, toY);
+      ctx2.lineTo(toX - headLen * Math.cos(angle - headAngle), toY - headLen * Math.sin(angle - headAngle));
+      ctx2.lineTo(toX - headLen * Math.cos(angle + headAngle), toY - headLen * Math.sin(angle + headAngle));
+      ctx2.closePath();
+      ctx2.fill();
+      // 发光光晕
+      ctx2.shadowColor = color;
+      ctx2.shadowBlur = 6;
+      ctx2.beginPath();
+      ctx2.arc(toX, toY, 3, 0, Math.PI * 2);
+      ctx2.fill();
+      ctx2.shadowBlur = 0;
+      // 标签
+      ctx2.fillStyle = labelColor || color;
+      ctx2.font = 'bold 12px sans-serif';
+      ctx2.textAlign = 'center';
+      ctx2.textBaseline = 'bottom';
+      var lx = (fromX + toX) / 2;
+      var ly = (fromY + toY) / 2;
+      ctx2.fillText(label, lx, ly - 4);
+    }
+
+    // ---- 重力 G（蓝色，竖直向下） ----
+    drawForceArrow(ctx, bobX, bobY, bobX, bobY + gLen, '#3b82f6', 'G', '#60a5fa');
+    // ---- 电场力 F电（红色，水平向右，因为正电荷） ----
+    drawForceArrow(ctx, bobX, bobY, bobX + eLen, bobY, '#ef4444', 'F电', '#f87171');
+    // ---- 合力 F合（橙色，斜向） ----
+    var rDx = eLen, rDy = gLen;
+    var rLen_actual = Math.sqrt(rDx*rDx + rDy*rDy);
+    var rNormX = rDx / rLen_actual, rNormY = rDy / rLen_actual;
+    var rEndX = bobX + rNormX * rLen * 0.9;
+    var rEndY = bobY + rNormY * rLen * 0.9;
+    drawForceArrow(ctx, bobX, bobY, rEndX, rEndY, '#f97316', 'F合', '#fb923c');
+
+    // ---- 力的合成关系（虚线辅助框，仅在小角度时显示） ----
+    if (Math.abs(theta) < 0.5) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      // 从 G 箭头末端到 F合 末端（水平连线）
+      ctx.beginPath();
+      ctx.moveTo(bobX, bobY + gLen);
+      ctx.lineTo(rEndX, bobY + gLen);
+      ctx.stroke();
+      // 从 F电 箭头末端到 F合 末端（竖直连线）
+      ctx.beginPath();
+      ctx.moveTo(bobX + eLen, bobY);
+      ctx.lineTo(bobX + eLen, rEndY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 平行四边形标注
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('平行四边形法则', rEndX + 40, rEndY);
+    }
+
+    // ---- 受力数值标签（在球附近汇总） ----
+    ctx.fillStyle = 'rgba(15,25,35,0.7)';
+    roundRectPath(ctx, bobX + bobR + 6, bobY - 48, 110, 46, 4);
+    ctx.fill();
+
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ef4444'; ctx.fillText('F电 = ' + qE_val.toFixed(1) + 'N', bobX + bobR + 12, bobY - 36);
+    ctx.fillStyle = '#3b82f6'; ctx.fillText('G  = ' + mg_val.toFixed(1) + 'N', bobX + bobR + 12, bobY - 20);
+    ctx.fillStyle = '#f97316'; ctx.fillText('F合 = ' + Math.sqrt(mg_val*mg_val+qE_val*qE_val).toFixed(2) + 'N', bobX + bobR + 12, bobY - 4);
+  }
+
+  ctx.restore();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
 /* 导出方式：优先挂到 window，否则尝试 CommonJS */
 if (typeof window !== 'undefined') {
   window.Components = {
@@ -1435,6 +3091,24 @@ if (typeof window !== 'undefined') {
     drawMoonBackground: drawMoonBackground,
     drawSplitScreenDivider: drawSplitScreenDivider,
     drawMeteor: drawMeteor,
+    drawForceArrow: drawForceArrow,
+    drawFormulaBoard: drawFormulaBoard,
+    drawOptionCard: drawOptionCard,
+    drawTextBlock: drawTextBlock,
+    drawPhysicsStage: drawPhysicsStage,
+    drawPhysicsObject: drawPhysicsObject,
+    drawPhysicsHUD: drawPhysicsHUD,
+    drawPhaseLabel: drawPhaseLabel,
+    drawPendulum: drawPendulum,
+    drawElectricFieldBg: drawElectricFieldBg,
+    drawElectricPendulum: drawElectricPendulum,
+    drawSpringOscillator: drawSpringOscillator,
+    drawInclinedPlane: drawInclinedPlane,
+    drawCircuitComponent: drawCircuitComponent,
+    drawGraph: drawGraph,
+    drawLever: drawLever,
+    drawContainer: drawContainer,
+    drawLightRay: drawLightRay,
     sceneLabel: sceneLabel,
     floatUpText: floatUpText,
     flashLabel: flashLabel,

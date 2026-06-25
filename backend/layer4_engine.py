@@ -28,6 +28,8 @@ Layer 4 — HTML编排引擎 (Timeline Orchestrator)
 import json
 import math
 import copy
+from physics_simulator import simulate_slope_problem
+from physics_param_extractor import run_simulation_from_text
 
 FPS = 60
 CANVAS_W = 960
@@ -792,6 +794,247 @@ def render_final_elevation(seg, cw, ch):
 
 
 # ==================================================================
+#  🔬 双模式：物理仿真渲染器
+# ==================================================================
+
+def render_simulate_physics(seg, cw, ch):
+    """物理仿真渲染器。
+
+    运行物理仿真并返回 mode=simulate 的片段数据。
+    返回 dict 而非普通 layers list，含 physics 帧数据供 engine.js 消费。
+    """
+    physics = seg.get("physics", {})
+    phases = physics.get("phases", [])
+    fps = physics.get("fps", 30)
+    visual = physics.get("visual_config", {})
+    params = physics.get("params", {})
+
+    if not phases:
+        return {
+            "_mode": "simulate",
+            "layers": [],
+            "_physics_empty": True,
+            "message": "无物理阶段数据",
+        }
+
+    # 运行仿真
+    from physics_simulator import PhysicsSimulator
+    sim = PhysicsSimulator(fps=fps)
+    for ph in phases:
+        sim.add_phase(ph["type"], ph.get("params", {}),
+                      max_duration=ph.get("max_duration"))
+    result = sim.run()
+    frames = result["frames"]
+    total_frames = result["total_frames"]
+    summary = result["summary"]
+
+    # 物理参数（优先用仿真结果，fallback到输入参数）
+    mass = params.get("mass", 2)
+    angle = params.get("angle_deg", 37)
+    mu_val = params.get("mu", 0.4)
+
+    # 确定含有哪种阶段
+    types = [p["type"] for p in phases]
+    has_slope = "slope" in types
+    has_rough = "rough_surface" in types
+    has_pull = "horizontal_pull" in types
+    has_electric = "electric_pendulum" in types
+
+    # 🔌 电场单摆渲染
+    if has_electric:
+        ep = phases[0]["params"]  # electric_pendulum phase params
+        mass = ep.get("mass", 0.1)
+        q_val = ep.get("charge", 5e-4)
+        e_val = ep.get("electric_field", 2000)
+        L_val = ep.get("length", 1.0)
+        g_val = ep.get("g", 10)
+        fs = ep.get("force_summary", {})
+
+        layers = [
+            {
+                "component": "drawElectricFieldBg",
+                "params": {
+                    "cx": cw // 2, "cy": ch // 2,
+                    "width": cw, "height": ch,
+                    "direction": "right",
+                    "fieldColor": "rgba(100,180,255,0.06)",
+                    "arrowColor": "rgba(100,180,255,0.15)",
+                }
+            },
+            {
+                "component": "drawElectricPendulum",
+                "params": {
+                    "cx": cw // 2, "cy": 120,
+                    "length": L_val * 80,
+                    "bobSize": 18,
+                    "bobColor": "#fbbf24",
+                    "mass": mass,
+                    "q": q_val,
+                    "E": e_val,
+                    "g": g_val,
+                    "scale": 1.0,
+                    "showAngle": True,
+                    "showForce": True,
+                    "showVelocity": True,
+                    "_realLength": L_val,
+                }
+            },
+            {
+                "component": "drawPhysicsHUD",
+                "params": {
+                    "panelX": cw - 220, "panelY": 50,
+                    "showEnergy": True,
+                    "mode": "electric_pendulum",
+                    "mass": mass, "q": q_val, "E": e_val, "g": g_val,
+                }
+            },
+            {
+                "component": "drawPhaseLabel",
+                "params": {"x": 16, "y": 16}
+            },
+        ]
+
+        return {
+            "_mode": "simulate",
+            "layers": layers,
+            "_physics_frames": frames,
+            "_physics_total_frames": total_frames,
+            "_physics_fps": fps,
+            "_physics_summary": {**summary, "force_summary": fs},
+            "_stage_config": {
+                "type": "electric_pendulum",
+                "length": L_val, "mass": mass, "charge": q_val,
+                "electric_field": e_val, "g": g_val,
+            }
+        }
+
+    # 场景配置（根据阶段类型自适应）
+    origin_x, origin_y = 80, 520
+    scale = 110
+    stage_type = "slope+surface" if has_slope else "surface"
+
+    # HUD位置（右上角或右下角）
+    hud_x, hud_y = cw - 240, 50
+    if has_pull or has_rough:
+        hud_x = cw - 260
+
+    # 构建层
+    layers = [
+        {
+            "component": "drawPhysicsStage",
+            "params": {
+                "type": stage_type,
+                "angle": angle,
+                "slopeLength": params.get("slope_length", 3),
+                "scale": scale,
+                "originX": origin_x,
+                "originY": origin_y,
+                "mu": mu_val,
+                # 在仿真模式下由帧数据驱动，但这些静态参数需要传给绘制函数
+            }
+        },
+        {
+            "component": "drawPhaseLabel",
+            "params": {
+                "frames_meta": {
+                    "frame_count": total_frames,
+                    "phases": [{"type": p["type"], "start": 0,
+                                "end": total_frames // len(phases)}
+                               for p in phases],
+                },
+                "x": 16, "y": 16,
+            }
+        },
+        {
+            "component": "drawPhysicsHUD",
+            "params": {
+                "frames_meta": {
+                    "frame_count": total_frames,
+                    "phases": phases,
+                },
+                "panelX": hud_x,
+                "panelY": hud_y,
+                "showEnergy": True,
+                "showVelocity": True,
+                "showAcceleration": True,
+            }
+        },
+        {
+            "component": "drawPhysicsObject",
+            "params": {
+                "frames_meta": {
+                    "frame_count": total_frames,
+                    "phases": phases,
+                },
+                "scale": scale,
+                "originX": origin_x,
+                "originY": origin_y,
+                "angle": angle,
+                "slopeLength": params.get("slope_length", 3),
+                "objectSize": 22,
+                "mass": mass,
+                "showVelocity": True,
+            }
+        },
+    ]
+
+    return {
+        "_mode": "simulate",
+        "layers": layers,
+        "_physics_frames": frames,
+        "_physics_total_frames": total_frames,
+        "_physics_fps": fps,
+        "_physics_summary": summary,
+        "_stage_config": {
+            "type": stage_type, "angle": angle,
+            "originX": origin_x, "originY": origin_y,
+            "scale": scale, "mu": mu_val,
+        }
+    }
+
+
+def render_simulate_insight(seg, cw, ch):
+    """关键洞察渲染器：仿真后弹出结论文字。"""
+    params = seg.get("params", {})
+    insights = params.get("insights", [])
+    formula = params.get("formula", "")
+    s = seg["start_frame"]
+    layers = []
+
+    for i, text in enumerate(insights[:3]):
+        y_pos = ch // 2 - 40 + i * 60
+        color = "#FFD700" if "⚡" in text else "#4FC3F7"
+        layers.append({
+            "component": "drawPopupLabel",
+            "params": {
+                "cx": CENTER_X, "cy": y_pos,
+                "width": 420, "height": 44,
+                "text": text,
+                "textColor": color,
+                "bgColor": "rgba(0,20,40,0.85)",
+                "borderColor": color,
+                "popStartFrame": s + i * 15,
+                "popDuration": 20,
+            }
+        })
+
+    if formula:
+        layers.append({
+            "component": "drawTypewriterText",
+            "params": {
+                "cx": CENTER_X, "cy": ch - 80,
+                "text": f"📐 {formula}",
+                "startFrame": s + len(insights) * 15 + 10,
+                "charsPerSecond": 6,
+                "color": "#FFD700",
+                "font": "bold 24px sans-serif",
+            }
+        })
+
+    return layers
+
+
+# ==================================================================
 #  场景类型 → 渲染器映射
 # ==================================================================
 
@@ -809,6 +1052,9 @@ SCENE_RENDERERS = {
     "concept_review": render_concept_review,
     "knowledge_transfer": render_knowledge_transfer,
     "final_elevation": render_final_elevation,
+    # 🔬 双模式扩展
+    "simulate_physics": render_simulate_physics,
+    "simulate_insight": render_simulate_insight,
 }
 
 
@@ -880,6 +1126,16 @@ def _resolve_background(seg: dict) -> dict:
             "type": "color",
             "color": "#0D0D1A",
         }
+    elif scene_type in ("simulate_physics",):
+        return {
+            "type": "color",
+            "color": "#0a0e1a",
+        }
+    elif scene_type in ("simulate_insight",):
+        return {
+            "type": "color",
+            "color": "#0b0e1a",
+        }
     else:
         # 默认深空背景
         return {
@@ -915,13 +1171,13 @@ def _generate_stars(count=60):
 
 def orchestrate(storyboard: dict) -> dict:
     """
-    将 Layer 3 分镜脚本转换为 timeline JSON。
+    将 Layer 3 分镜脚本转换为 timeline JSON（支持 explain + simulate 双模式）。
 
-    参数:
-        storyboard: Layer 3 输出的分镜脚本 JSON（含 meta 和 acts）
-
-    返回:
-        timeline JSON dict，可直接序列化为 timeline.json
+    对 simulate 模式的片段：
+    1. 调用 physics_simulator 生成帧数据
+    2. 嵌入帧数据到 timeline 中
+    3. 按实际帧数调整片段 endFrame
+    4. 后续片段 startFrame 顺延
     """
     meta = storyboard.get("meta", {})
     acts = storyboard.get("acts", [])
@@ -931,42 +1187,87 @@ def orchestrate(storyboard: dict) -> dict:
 
     timeline = []
     total_frames = 0
+    current_pos = 0  # 当前已使用的帧数（用于紧凑排列）
 
     for act in acts:
         segments = act.get("segments", [])
 
         for seg in segments:
             scene_type = seg.get("scene_type", "")
-            start = seg.get("start_frame", 0)
-            end = seg.get("end_frame", start + FPS * 5)  # fallback 5秒
+            original_duration = seg.get("end_frame", FPS * 5) - seg.get("start_frame", 0)
 
             # 背景
             background = _resolve_background(seg)
 
-            # 层
+            # 层（支持 explain 和 simulate）
             renderer = SCENE_RENDERERS.get(scene_type, _get_fallback_renderer)
-            layers = renderer(seg, canvas_w, canvas_h)
+            render_result = renderer(seg, canvas_w, canvas_h)
 
-            # 过渡
-            transition_in = None
-            if act["act_number"] == 1 and seg == segments[0]:
-                # 第一幕第一段：淡入
-                transition_in = {"duration": 20, "easing": "easeOut"}
+            # 判断是否为 simulate 模式
+            is_simulate = isinstance(render_result, dict) and render_result.get("_mode") == "simulate"
 
-            transition = {"duration": 20, "easing": "easeOut"}
+            if is_simulate:
+                # ── 仿真模式处理 ──
+                sim_data = render_result
+                layers = sim_data.get("layers", [])
+                physics_frames = sim_data.get("_physics_frames", [])
+                physics_total = sim_data.get("_physics_total_frames", 0)
+                physics_fps = sim_data.get("_physics_fps", 30)
+                physics_summary = sim_data.get("_physics_summary", {})
 
-            timeline.append({
-                "id": f"{act['act_number']}-{seg['id']}",
-                "name": seg.get("name", ""),
-                "startFrame": start,
-                "endFrame": end,
-                "background": background,
-                "transition_in": transition_in,
-                "transition": transition,
-                "layers": layers,
-            })
+                # 仿真片段时长 = 实际帧数（至少30帧）
+                actual_frames = max(physics_total, 30)
+                start = current_pos
+                end = start + actual_frames
+                current_pos = end + 1  # +1 gap
 
+                # 构建 timeline 条目
+                entry = {
+                    "id": f"{act['act_number']}-{seg['id']}",
+                    "name": seg.get("name", ""),
+                    "mode": "simulate",
+                    "startFrame": start,
+                    "endFrame": end,
+                    "background": background,
+                    "transition_in": None,
+                    "transition": {"duration": 10, "easing": "easeOut"},
+                    "layers": layers,
+                    "physics": {
+                        "frames": physics_frames,
+                        "fps": physics_fps,
+                        "total_frames": physics_total,
+                        "summary": physics_summary,
+                    }
+                }
+            else:
+                # ── 讲解模式 ──
+                start = current_pos
+                end = start + original_duration
+                current_pos = end + 1  # +1 gap
+                layers = render_result if isinstance(render_result, list) else []
+
+                transition_in = None
+                if act["act_number"] == 1 and seg == segments[0]:
+                    transition_in = {"duration": 20, "easing": "easeOut"}
+
+                entry = {
+                    "id": f"{act['act_number']}-{seg['id']}",
+                    "name": seg.get("name", ""),
+                    "mode": seg.get("mode", "explain"),
+                    "startFrame": start,
+                    "endFrame": end,
+                    "background": background,
+                    "transition_in": transition_in,
+                    "transition": {"duration": 20, "easing": "easeOut"},
+                    "layers": layers,
+                }
+
+            timeline.append(entry)
             total_frames = max(total_frames, end)
+
+    # 检查是否包含 simulation
+    has_sim = any(t.get("mode") == "simulate" for t in timeline)
+    mode_label = "hybrid" if has_sim else "explain_only"
 
     result = {
         "meta": {
@@ -975,6 +1276,7 @@ def orchestrate(storyboard: dict) -> dict:
             "width": canvas_w,
             "height": canvas_h,
             "title": meta.get("topic", "物理动画"),
+            "mode": mode_label,
         },
         "timeline": timeline
     }
@@ -1135,6 +1437,19 @@ def generate_html_timeline(timeline: dict, output_html: str = None) -> str:
   }}
   #controls.hidden {{ opacity: 0; pointer-events: none; }}
   #app:hover #controls {{ opacity: 1; pointer-events: auto; }}
+  #physics-data {{
+    display: none;
+    color: #60a5fa;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+    white-space: nowrap;
+    gap: 12px;
+    align-items: center;
+  }}
+  #physics-data.show {{ display: flex; }}
+  #physics-data .label {{ color: #64748b; }}
+  #physics-data .val {{ color: #fbbf24; font-weight: bold; }}
 </style>
 </head>
 <body>
@@ -1145,6 +1460,11 @@ def generate_html_timeline(timeline: dict, output_html: str = None) -> str:
     <input type="range" id="seek-bar" min="0" max="100" value="0">
     <span id="time-display">00:00 / 00:00</span>
     <span id="segment-name"></span>
+    <span id="physics-data">
+      <span><span class="label">v=</span><span id="phy-vel" class="val">0</span></span>
+      <span><span class="label">a=</span><span id="phy-acc" class="val">0</span></span>
+      <span><span class="label">Ek=</span><span id="phy-ek" class="val">0</span></span>
+    </span>
   </div>
 </div>
 
@@ -1161,12 +1481,18 @@ var TIMELINE = {timeline_json};
         seekBar.value = (frame / total * 100);
       }}
       updateDisplay(frame, total);
+      updatePhysicsData(frame, total);
     }},
     onSegmentChange: function(seg, prev) {{
       var nameEl = document.getElementById('segment-name');
       if (nameEl && seg) {{
         var actMatch = seg.id ? seg.id.split('-')[0] : '';
-        nameEl.textContent = (actMatch ? '第' + actMatch + '幕 · ' : '') + seg.name;
+        var prefix = actMatch ? '第' + actMatch + '幕 · ' : '';
+        nameEl.textContent = prefix + seg.name;
+      var phyEl = document.getElementById('physics-data');
+      if (phyEl) {{
+        phyEl.classList.toggle('show', seg && seg.mode === 'simulate');
+      }}
       }}
     }},
     onComplete: function() {{
@@ -1190,6 +1516,23 @@ var TIMELINE = {timeline_json};
     return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
   }}
 
+
+  /** Dual-mode: update physics data bar */
+  function updatePhysicsData(frame, total) {{
+    if (typeof findSegment !== "function") return;
+    var seg = findSegment(frame, TIMELINE.timeline);
+    if (!seg || seg.mode !== "simulate") return;
+    var localFrame = frame - seg.startFrame;
+    if (!seg.physics || !seg.physics.frames) return;
+    var d = seg.physics.frames[localFrame];
+    if (!d) return;
+    var vel = document.getElementById("phy-vel");
+    if (vel) vel.textContent = (d.v ? d.v.toFixed(2) + "m/s" : "0");
+    var acc = document.getElementById("phy-acc");
+    if (acc) acc.textContent = (d.a ? d.a.toFixed(2) + "m/s²" : "0");
+    var ek = document.getElementById("phy-ek");
+    if (ek) ek.textContent = (d.Ek ? d.Ek.toFixed(1) + "J" : "0");
+  }}
   // 播放/暂停
   document.getElementById('btn-play').addEventListener('click', function() {{
     var state = engine.getState();

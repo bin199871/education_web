@@ -3,179 +3,545 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>牛顿运动定律与能量守恒</title>
+<title>🔬 物理原理可视化</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    overflow: hidden;
-  }
-  #app {
-    position: relative;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 0 40px rgba(0,0,0,0.5);
-  }
-  canvas {
-    display: block;
-    background: #0a0a1a;
-    width: 960px;
-    height: 640px;
-  }
-  #controls {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 20px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.85));
-    transition: opacity 0.3s;
-  }
-  #controls button {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    color: #fff;
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-  }
-  #controls button:hover { background: rgba(255,255,255,0.3); }
-  #controls input[type="range"] {
-    flex: 1;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(255,255,255,0.2);
-    border-radius: 2px;
-    outline: none;
-  }
-  #controls input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #4FC3F7;
-    cursor: pointer;
-  }
-  #time-display {
-    color: rgba(255,255,255,0.7);
-    font-size: 13px;
-    min-width: 90px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-  #segment-name {
-    color: rgba(255,255,255,0.5);
-    font-size: 12px;
-    text-align: center;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #controls.hidden { opacity: 0; pointer-events: none; }
-  #app:hover #controls { opacity: 1; pointer-events: auto; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #080c18;
+  color: #e0e8f0;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px;
+  gap: 12px;
+}
+.app { max-width: 1000px; width: 100%; }
+h1 { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.subtitle { color: #64748b; font-size: 13px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; display: flex; justify-content: space-between; }
+
+/* ── 输入面板 ── */
+#input-panel {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+#input-panel textarea {
+  width: 100%;
+  height: 80px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: #c8d6e5;
+  font-size: 13px;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#input-panel textarea:focus { border-color: #4FC3F7; }
+.sample-btns { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.sample-btn {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  color: #94a3b8; font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
+  transition: all 0.2s;
+}
+.sample-btn:hover { background: rgba(79,195,247,0.1); border-color: #4FC3F7; color: #b0d4f1; }
+.toolbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.btn-primary, .btn-secondary {
+  border: none; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #1a73e8, #0d47a1);
+  color: #fff;
+}
+.btn-primary:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(26,115,232,0.35); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-primary.loading { background: linear-gradient(135deg, #546e7a, #37474f); }
+.btn-secondary {
+  background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.toggle-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.toggle-label { font-size: 12px; color: #78909c; cursor: pointer; }
+.toggle-switch {
+  width: 36px; height: 20px; border-radius: 10px; background: #37474f; cursor: pointer;
+  position: relative; transition: background 0.2s;
+}
+.toggle-switch.active { background: #1976d2; }
+.toggle-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%; background: #78909c;
+  transition: all 0.2s;
+}
+.toggle-switch.active::after { left: 18px; background: #fff; }
+#status-msg { font-size: 12px; color: #546e7a; flex: 1; text-align: right; }
+#status-msg.error { color: #ef5350; }
+#status-msg.success { color: #66bb6a; }
+#status-msg.info { color: #4FC3F7; }
+
+/* ── Tab 栏 ── */
+.tab-bar {
+  display: flex; gap: 0; border-bottom: 2px solid rgba(255,255,255,0.06);
+  margin-top: 2px;
+}
+.tab-btn {
+  padding: 8px 18px; border: none; background: none; color: #64748b;
+  font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all 0.2s;
+}
+.tab-btn:hover { color: #94a3b8; }
+.tab-btn.active { color: #4FC3F7; border-bottom-color: #4FC3F7; font-weight: 600; }
+
+/* ── 内容区 ── */
+.content-area {
+  margin-top: 8px;
+  min-height: 400px;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 文本输出 */
+.output-text {
+  max-height: 500px; overflow-y: auto;
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px; padding: 14px 16px;
+  font-size: 13px; line-height: 1.7; white-space: pre-wrap;
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: #c8d6e5;
+}
+
+/* ── 播放器（动画 Tab） ── */
+.player-wrap {
+  position: relative;
+  width: 960px; height: 640px;
+  background: #0a0e1a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  margin: 0 auto;
+}
+canvas { display: block; width: 960px; height: 640px; }
+#controls {
+  display: flex; align-items: center; gap: 12px;
+  width: 960px; padding: 8px 16px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 8px; margin: 0 auto;
+  backdrop-filter: blur(8px);
+}
+#controls button {
+  background: none; border: 1px solid rgba(255,255,255,0.15);
+  color: #d0dfff; width: 36px; height: 36px; border-radius: 50%;
+  cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+#controls button:hover { background: rgba(255,215,0,0.1); border-color: rgba(255,215,0,0.3); }
+#seek-bar {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: #2a3a5a; border-radius: 2px; outline: none; cursor: pointer;
+}
+#seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #f6d365; cursor: pointer;
+}
+#time-display {
+  color: #9aa9c9; font-size: 13px; min-width: 100px;
+  font-variant-numeric: tabular-nums;
+}
+#segment-name {
+  color: #94a3b8; font-size: 12px; min-width: 120px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#physics-data {
+  display: none; align-items: center; gap: 14px;
+  margin-left: auto; font-size: 12px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#physics-data.show { display: flex; }
+#physics-data .label { color: #64748b; }
+#physics-data .val.vel { color: #60a5fa; font-weight: bold; }
+#physics-data .val.acc { color: #a78bfa; font-weight: bold; }
+#physics-data .val.ek  { color: #34d399; font-weight: bold; }
+#empty-state {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #475569; pointer-events: none; gap: 12px;
+}
+#empty-state .icon { font-size: 48px; opacity: 0.3; }
+#empty-state .hint { opacity: 0.5; font-size: 14px; }
+#loader {
+  position: absolute; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8,12,24,0.85); z-index: 10;
+}
+#loader.show { display: flex; }
+.spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.08); border-top-color: #4FC3F7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { margin-top: 16px; color: #94a3b8; font-size: 13px; }
+@media (max-width: 1000px) {
+  .player-wrap, #controls { width: 100%; min-width: 0; }
+  canvas { width: 100%; height: auto; }
+}
 </style>
 </head>
 <body>
-<div id="app">
-  <canvas id="stage"></canvas>
-  <div id="controls">
-    <button id="btn-play" title="播放/暂停">▶</button>
-    <input type="range" id="seek-bar" min="0" max="100" value="0">
-    <span id="time-display">00:00 / 00:00</span>
-    <span id="segment-name"></span>
+<div class="app">
+  <h1>🔬 物理原理可视化</h1>
+  <div class="subtitle"><span>题目分析 + 混合模式动画播放（讲解 / 仿真）</span></div>
+
+  <!-- 输入面板 -->
+  <div id="input-panel">
+    <div class="sample-btns">
+      <button class="sample-btn" data-sample="slope">斜面+粗糙面+拉力</button>
+      <button class="sample-btn" data-sample="freefall">自由落体</button>
+      <button class="sample-btn" data-sample="vertical">竖直上抛</button>
+      <button class="sample-btn" data-sample="efield">⚡ 电场+单摆</button>
+    </div>
+    <textarea id="problem-input" placeholder="粘贴物理题目文本，点击「分析题目」或「生成视频」&#10;&#10;例如：一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。物块滑到斜面底端后，进入粗糙水平面 BC，动摩擦因数 μ=0.4。水平面 BC 足够长，重力加速度 g=10m/s²。求物块在水平面上滑行的最大距离。"></textarea>
+    <div class="toolbar">
+      <button class="btn-primary" id="btn-analyze">🔍 分析题目</button>
+      <button class="btn-primary" id="btn-generate">🎬 生成视频</button>
+      <button class="btn-secondary" id="btn-clear">🗑️ 清空</button>
+      <div class="toggle-wrap">
+        <span class="toggle-label">🧠 LLM 增强</span>
+        <div class="toggle-switch active" id="toggle-llm"></div>
+      </div>
+      <span id="status-msg">就绪</span>
+    </div>
+  </div>
+
+  <!-- Tab 栏 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="steps">📝 解题过程</button>
+    <button class="tab-btn" data-tab="analysis">📋 分析结果</button>
+    <button class="tab-btn" data-tab="storyboard">🎬 幕结构</button>
+    <button class="tab-btn" data-tab="script">📝 分镜文稿</button>
+    <button class="tab-btn" data-tab="player">🎬 动画</button>
+  </div>
+
+  <!-- 内容区 -->
+  <div class="content-area">
+    <div class="tab-content active" id="tab-steps">
+      <div class="output-text" id="output-steps">点击「分析题目」查看解题过程…</div>
+    </div>
+    <div class="tab-content" id="tab-analysis">
+      <div class="output-text" id="output-analysis">点击「分析题目」查看分析结果…</div>
+    </div>
+    <div class="tab-content" id="tab-storyboard">
+      <div class="output-text" id="output-storyboard">点击「分析题目」查看幕结构…</div>
+    </div>
+    <div class="tab-content" id="tab-script">
+      <div class="output-text" id="output-script">点击「分析题目」查看分镜文稿…</div>
+    </div>
+    <div class="tab-content" id="tab-player">
+      <div class="player-wrap">
+        <canvas id="stage"></canvas>
+        <div id="empty-state">
+          <div class="icon">🎬</div>
+          <div class="hint">点击「生成视频」生成动画</div>
+        </div>
+        <div id="loader">
+          <div style="text-align:center"><div class="spinner"></div><div class="loader-text">正在生成动画 ...</div></div>
+        </div>
+      </div>
+      <div id="controls">
+        <button id="btn-play" title="播放/暂停">▶</button>
+        <input type="range" id="seek-bar" min="0" max="100" value="0">
+        <span id="time-display">00:00 / 00:00</span>
+        <span id="segment-name"></span>
+        <span id="physics-data">
+          <span><span class="label">v=</span><span class="val vel" id="phy-vel">0</span></span>
+          <span><span class="label">a=</span><span class="val acc" id="phy-acc">0</span></span>
+          <span><span class="label">Ek=</span><span class="val ek" id="phy-ek">0</span></span>
+          <span><span class="label">Ep=</span><span class="val ek" id="phy-ep">0</span></span>
+        </span>
+      </div>
+    </div>
   </div>
 </div>
 
 <script src="components.js"></script>
 <script src="engine.js"></script>
 <script>
-var TIMELINE = {"meta": {"totalFrames": 4804, "fps": 60, "width": 960, "height": 640, "title": "牛顿运动定律与能量守恒"}, "timeline": [{"id": "1-1-1", "name": "开场引入", "startFrame": 0, "endFrame": 600, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.3, "color": "#283593"}, {"pos": 0.55, "color": "#5C6BC0"}, {"pos": 0.65, "color": "#3949AB"}]}}, "transition_in": {"duration": 20, "easing": "easeOut"}, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawCube", "params": {"cx": 480, "cy": 290, "size": 90, "rotX": {"type": "sin", "amplitude": 0.3, "period": 180, "center": 0.5, "offset": 0}, "rotY": {"type": "sin", "amplitude": 0.4, "period": 240, "center": 0.8, "offset": 0}, "color": "#88bbdd", "label": "🔬"}}, {"component": "drawPopupLabel", "params": {"cx": 280, "cy": 290, "width": 140, "height": 44, "text": "质量", "textColor": "#ffffff", "bgColor": "#4CAF50", "popStartFrame": 180, "popDuration": 20}}, {"component": "drawPopupLabel", "params": {"cx": 680, "cy": 290, "width": 140, "height": 44, "text": "重力", "textColor": "#ffffff", "bgColor": "#FF9800", "popStartFrame": 180, "popDuration": 20}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 580, "text": "物理 · 核心概念", "startFrame": 300, "charsPerSecond": 8, "color": "#ffffff", "font": "22px sans-serif"}}]}, {"id": "1-1-2", "name": "场景A展示", "startFrame": 601, "endFrame": 1801, "background": {"component": "drawEarthBackground", "params": {"grassColor": "#558B2F"}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawBalance", "params": {"cx": 280, "cy": 380, "scale": 0.75, "weight": 1.0, "label": "场景 A", "highlight": true}}, {"component": "drawSpringScale", "params": {"cx": 680, "cy": 380, "scale": 0.75, "weight": 9.8, "label": "场景 B", "highlight": true}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 600, "targetY": 580, "text": "斜面下滑过程：机械能守恒 9.8 m/s²", "color": "#FFD54F", "font": "20px sans-serif", "startFrame": 1561, "floatDuration": 25, "stayDuration": 1200}}, {"component": "sceneLabel", "params": {"cx": 80, "cy": 30, "text": "斜面下滑过程：机械能守恒", "color": "#ffffff", "bgColor": "rgba(0,0,0,0.5)", "fontSize": 14}}]}, {"id": "1-1-3", "name": "场景B展示", "startFrame": 1802, "endFrame": 3002, "background": {"component": "drawMoonBackground", "params": {"craters": []}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawBalance", "params": {"cx": 280, "cy": 380, "scale": 0.75, "weight": 1.0, "label": "⚖️ 质量 = 1.0 kg（不变！）", "highlight": true}}, {"component": "drawSpringScale", "params": {"cx": 680, "cy": 380, "scale": 0.75, "weight": 1.6, "label": "📏 重力（水平减速过程：动能定理或牛顿第二定律）", "highlight": true}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 600, "targetY": 580, "text": "水平减速过程：动能定理或牛顿第二定律 1.6 m/s²", "color": "#FFD54F", "font": "20px sans-serif", "startFrame": 2762, "floatDuration": 25, "stayDuration": 1200}}, {"component": "sceneLabel", "params": {"cx": 80, "cy": 30, "text": "水平减速过程：动能定理或牛顿第二定律", "color": "#ffffff", "bgColor": "rgba(0,0,0,0.5)", "fontSize": 14}}]}, {"id": "1-1-4", "name": "对比结论", "startFrame": 3003, "endFrame": 4203, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#283593"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawSplitScreenDivider", "params": {"splitX": 480}}, {"component": "sceneLabel", "params": {"cx": 240, "cy": 30, "text": "🌍 地球", "color": "#81C784", "fontSize": 14}}, {"component": "sceneLabel", "params": {"cx": 720, "cy": 30, "text": "🌙 月球", "color": "#FFB74D", "fontSize": 14}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 280, "width": 360, "height": 40, "text": "✅ 质量 —— 不随位置改变", "textColor": "#FF9800", "bgColor": "rgba(0,0,0,0.7)", "borderColor": "#FF9800", "popStartFrame": 3303, "popDuration": 18}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 330, "width": 360, "height": 40, "text": "✅ 重力 —— 随引力变化", "textColor": "#FF9800", "bgColor": "rgba(0,0,0,0.7)", "borderColor": "#FF9800", "popStartFrame": 3318, "popDuration": 18}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 540, "text": "核心公式: mgh = (1/2)mv², v² = 2ax, a = μg", "startFrame": 3723, "charsPerSecond": 6, "color": "#FFD700", "font": "bold 26px sans-serif"}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 610, "targetY": 590, "text": "接下来，我们看一道真题如何运用这两个概念", "color": "#aaaaaa", "font": "16px sans-serif", "startFrame": 3963, "floatDuration": 20}}]}, {"id": "1-1-5", "name": "过渡到题目", "startFrame": 4204, "endFrame": 4804, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#283593"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawMeteor", "params": {"fromX": 1152.0, "fromY": -20, "toX": -80, "toY": 384.0, "startFrame": 4324, "duration": 40}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 320, "text": "接下来，让我们用这道题检验所学", "startFrame": 4504, "charsPerSecond": 8, "color": "#ffffff", "font": "bold 28px sans-serif"}}]}, {"id": "2-2-1", "name": "题目展示", "startFrame": 0, "endFrame": 600, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#F5F5F5"}, {"pos": 0.65, "color": "#E0E0E0"}], "grassColor": "#E0E0E0"}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "sceneLabel", "params": {"cx": 120, "cy": 40, "text": "📝 真题演练", "color": "#D32F2F", "bgColor": "rgba(255,255,255,0.9)", "fontSize": 18}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 120, "text": "滑雪者从光滑斜面滑下，然后进入粗糙水平雪道，求底端速度和水平滑行距离。", "startFrame": 180, "charsPerSecond": 12, "color": "#1A237E", "font": "20px sans-serif"}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 660, "targetY": 600, "text": "🤔 请思考：哪个选项是正确的？", "color": "#666", "font": "16px sans-serif", "startFrame": 720, "floatDuration": 20}}]}, {"id": "2-2-2", "name": "场景与受力分析", "startFrame": 601, "endFrame": 1801, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#F5F5F5"}, {"pos": 0.65, "color": "#E0E0E0"}], "grassColor": "#E0E0E0"}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "sceneLabel", "params": {"cx": 480, "cy": 50, "text": "📍 受力分析", "color": "#81D4FA", "fontSize": 18}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 140, "width": 500, "height": 50, "text": "斜面下滑过程：机械能守恒: ", "textColor": "#E0E0E0", "bgColor": "rgba(30,30,60,0.85)", "borderColor": "#5C6BC0", "popStartFrame": 721, "popDuration": 16}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 220, "width": 500, "height": 50, "text": "水平减速过程：动能定理或牛顿第二定律: ", "textColor": "#E0E0E0", "bgColor": "rgba(30,30,60,0.85)", "borderColor": "#5C6BC0", "popStartFrame": 739, "popDuration": 16}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 660, "targetY": 600, "text": "💡 能量守恒与牛顿第二定律", "color": "#FFD54F", "font": "18px sans-serif", "startFrame": 1441, "floatDuration": 20}}]}, {"id": "2-2-3", "name": "选项逐个击破", "startFrame": 1802, "endFrame": 3602, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#F5F5F5"}, {"pos": 0.65, "color": "#E0E0E0"}], "grassColor": "#E0E0E0"}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawTypewriterText", "params": {"cx": 480, "cy": 320, "text": "暂无选项数据", "startFrame": 1802, "color": "#ffffff"}}]}, {"id": "2-2-4", "name": "答案确认", "startFrame": 3603, "endFrame": 4203, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#F5F5F5"}, {"pos": 0.65, "color": "#E0E0E0"}], "grassColor": "#E0E0E0"}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawPopupLabel", "params": {"cx": 480, "cy": 280, "width": 350, "height": 70, "text": "✅ 正确答案: ", "textColor": "#4CAF50", "bgColor": "rgba(0,40,0,0.85)", "borderColor": "#4CAF50", "popStartFrame": 3603, "popDuration": 20}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 380, "text": "依据公式: mgh = (1/2)mv², v² = 2ax, a = μg", "startFrame": 3843, "charsPerSecond": 8, "color": "#FFD700", "font": "22px sans-serif"}}]}, {"id": "2-2-5", "name": "总结公式", "startFrame": 4204, "endFrame": 4504, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#283593"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawTypewriterText", "params": {"cx": 480, "cy": 300, "text": "mgh = (1/2)mv², v² = 2ax, a = μg", "startFrame": 4204, "charsPerSecond": 6, "color": "#FFD700", "font": "bold 36px sans-serif"}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 380, "targetY": 360, "text": "💡 能量守恒与牛顿第二定律", "color": "#B0BEC5", "font": "18px sans-serif", "startFrame": 4384, "floatDuration": 20}}, {"component": "staticLabel", "params": {"cx": 480, "cy": 320, "width": 460, "height": 120, "text": "", "bgColor": "rgba(0,0,0,0.3)", "borderColor": "#FFD700", "borderRadius": 12, "opacity": 0.6}}]}, {"id": "3-3-1", "name": "核心概念回顾", "startFrame": 0, "endFrame": 600, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#4A148C"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawBalance", "params": {"cx": 480, "cy": 360, "scale": 0.7, "weight": 1.0, "label": "⚖️", "highlight": false}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 80, "text": "⚖️ 能量守恒与牛顿第二定律", "startFrame": 120, "charsPerSecond": 5, "color": "#FFD700", "font": "bold 30px sans-serif"}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 130, "text": "在只有重力做功的情况下，机械能守恒；在粗糙水平面上，摩擦力做负功，动能定理适用。", "startFrame": 360, "charsPerSecond": 12, "color": "#E0E0E0", "font": "16px sans-serif"}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 560, "text": "公式: mgh = (1/2)mv², v² = 2ax, a = μg", "startFrame": 600, "charsPerSecond": 6, "color": "#81D4FA", "font": "bold 22px sans-serif"}}]}, {"id": "3-3-2", "name": "知识迁移", "startFrame": 601, "endFrame": 1801, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#4A148C"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "sceneLabel", "params": {"cx": 480, "cy": 40, "text": "🔬 科学 · 🌍 生活 · 🚀 探索", "color": "#ffffff", "fontSize": 18}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 110, "width": 600, "height": 50, "text": "❌ 常见误解: 误认为斜面底端速度与质量有关，实际上由高度决定", "textColor": "#FFAB91", "bgColor": "rgba(60,20,20,0.85)", "borderColor": "#FF5722", "popStartFrame": 601, "popDuration": 14}}, {"component": "drawPopupLabel", "params": {"cx": 480, "cy": 190, "width": 600, "height": 50, "text": "❌ 常见误解: 混淆重力与质量，认为质量影响加速度", "textColor": "#FFAB91", "bgColor": "rgba(60,20,20,0.85)", "borderColor": "#FF5722", "popStartFrame": 621, "popDuration": 14}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 660, "targetY": 270, "text": "🌌 掌握了能量守恒与牛顿第二定律，就能理解更多物理现象", "color": "#B2EBF2", "font": "18px sans-serif", "startFrame": 1321, "floatDuration": 20}}]}, {"id": "3-3-3", "name": "升华总结", "startFrame": 1802, "endFrame": 3002, "background": {"component": "drawEarthBackground", "params": {"skyGradient": [{"pos": 0, "color": "#1A237E"}, {"pos": 0.65, "color": "#4A148C"}]}}, "transition_in": null, "transition": {"duration": 20, "easing": "easeOut"}, "layers": [{"component": "drawTypewriterText", "params": {"cx": 480, "cy": 290, "text": "宇宙的答案，藏在你对世界的每一次提问中", "startFrame": 1982, "charsPerSecond": 6, "color": "#FFD700", "font": "bold 28px sans-serif"}}, {"component": "drawTypewriterText", "params": {"cx": 480, "cy": 370, "text": "能量守恒与牛顿第二定律 —— 一堂关于宇宙的物理课", "startFrame": 2402, "charsPerSecond": 5, "color": "#ffffff", "font": "bold 22px sans-serif"}}, {"component": "floatUpText", "params": {"cx": 480, "cy": 660, "targetY": 600, "text": "📚 感谢观看 · 探索永不止步", "color": "#90A4AE", "font": "16px sans-serif", "startFrame": 2762, "floatDuration": 25}}]}]};
-
 (function() {
-  var engine = startEngine('stage', TIMELINE, {
-    onFrameUpdate: function(frame, total) {
-      var seekBar = document.getElementById('seek-bar');
-      if (seekBar && total > 0) {
-        seekBar.value = (frame / total * 100);
-      }
-      updateDisplay(frame, total);
-    },
-    onSegmentChange: function(seg, prev) {
-      var nameEl = document.getElementById('segment-name');
-      if (nameEl && seg) {
-        var actMatch = seg.id ? seg.id.split('-')[0] : '';
-        nameEl.textContent = (actMatch ? '第' + actMatch + '幕 · ' : '') + seg.name;
-      }
-    },
-    onComplete: function() {
-      var btn = document.getElementById('btn-play');
-      if (btn) btn.textContent = '↺';
-    }
+  "use strict";
+  var inputEl = document.getElementById('problem-input');
+  var btnAnalyze = document.getElementById('btn-analyze');
+  var btnGenerate = document.getElementById('btn-generate');
+  var btnClear = document.getElementById('btn-clear');
+  var toggleLLM = document.getElementById('toggle-llm');
+  var statusEl = document.getElementById('status-msg');
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var canvas = document.getElementById('stage');
+  var loader = document.getElementById('loader');
+  var emptyState = document.getElementById('empty-state');
+  var playBtn = document.getElementById('btn-play');
+  var seekBar = document.getElementById('seek-bar');
+  var timeDisplay = document.getElementById('time-display');
+  var segName = document.getElementById('segment-name');
+  var physicsData = document.getElementById('physics-data');
+  var phyVel = document.getElementById('phy-vel');
+  var phyAcc = document.getElementById('phy-acc');
+  var phyEk = document.getElementById('phy-ek');
+  var phyEp = document.getElementById('phy-ep');
+  var outSteps = document.getElementById('output-steps');
+  var outAnalysis = document.getElementById('output-analysis');
+  var outStoryboard = document.getElementById('output-storyboard');
+  var outScript = document.getElementById('output-script');
+
+  var engine = null;
+  var timelineData = null;
+  var llmEnabled = true;  // 默认开启
+  var analyzing = false;
+  var activeTab = 'steps';
+  var cachedAnalysis = null;
+
+  // 示例题目
+  var SAMPLES = {
+    slope: '一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。物块滑到斜面底端后，进入粗糙水平面 BC，动摩擦因数 μ=0.4。水平面 BC 足够长，重力加速度 g=10m/s²。求物块在水平面上滑行的最大距离。',
+    freefall: '一质量 m=0.5kg 的小球从 h=20m 的高处自由落下，重力加速度 g=10m/s²，求小球落地时的速度。',
+    vertical: '以 v0=10m/s 的初速度竖直上抛一个质量为 0.2kg 的小球，g=10m/s²，求小球上升的最大高度。',
+    efield: '在竖直平面内存在水平向右的匀强电场，电场强度大小 E = 2.0 × 10³ N/C。一个带正电的小球质量 m = 0.1 kg，电荷量 q = 5.0 × 10⁻⁴ C，用长度 L = 1.0 m 的不可伸长的绝缘细线悬挂于 O 点。将小球从悬点 O 的正下方 A 点由静止释放，小球在电场力和重力共同作用下开始运动。细线始终处于绷直状态，重力加速度 g = 10 m/s²。求：（1）小球所受电场力的大小 F电 和重力与电场力的合力大小 F合；（2）小球运动到细线与竖直方向夹角 θ = 37° 时的速度大小 v。',
+  };
+  document.querySelectorAll('.sample-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var key = this.getAttribute('data-sample');
+      if (SAMPLES[key]) { inputEl.value = SAMPLES[key]; setStatus('已加载示例', 'info'); }
+    });
   });
 
-  function updateDisplay(frame, total) {
-    var el = document.getElementById('time-display');
-    if (!el) return;
-    var f = Math.min(frame, total);
-    var sec = Math.floor(f / (TIMELINE.meta.fps || 60));
-    var totalSec = Math.floor(total / (TIMELINE.meta.fps || 60));
-    el.textContent = fmtTime(sec) + ' / ' + fmtTime(totalSec);
-  }
-
+  function setStatus(msg, type) { statusEl.textContent = msg; statusEl.className = type || ''; }
   function fmtTime(s) {
-    var m = Math.floor(s / 60);
-    var sec = s % 60;
+    var m = Math.floor(s / 60), sec = s % 60;
     return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
   }
 
-  // 播放/暂停
-  document.getElementById('btn-play').addEventListener('click', function() {
-    var state = engine.getState();
-    if (state.isComplete) {
-      engine.seek(0);
-      engine.resume();
-      this.textContent = '⏸';
-    } else if (state.isPaused) {
-      engine.resume();
-      this.textContent = '⏸';
-    } else {
-      engine.pause();
-      this.textContent = '▶';
-    }
+  // LLM 开关
+  toggleLLM.addEventListener('click', function() {
+    llmEnabled = !llmEnabled;
+    toggleLLM.classList.toggle('active', llmEnabled);
   });
 
-  // 进度条
-  var seekBar = document.getElementById('seek-bar');
+  // Tab 切换
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = this.getAttribute('data-tab');
+      if (tab === activeTab) return;
+      activeTab = tab;
+      tabBtns.forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+      });
+      document.querySelectorAll('.tab-content').forEach(function(tc) {
+        tc.classList.toggle('active', tc.id === 'tab-' + tab);
+      });
+      if (tab === 'player' && timelineData) {
+        // 重新渲染当前帧以适配 canvas 尺寸
+        setTimeout(function() { if (engine) engine.seek(engine.getCurrentFrame()); }, 50);
+      }
+    });
+  });
+  function switchTab(tab) {
+    var btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+    if (btn) btn.click();
+  }
+
+  // ─── Timer 显示更新 ───
+  function updateTimeDisplay(frame, total) {
+    var fps = (timelineData && timelineData.meta && timelineData.meta.fps) || 60;
+    timeDisplay.textContent = fmtTime(Math.floor(frame / fps)) + ' / ' + fmtTime(Math.floor(total / fps));
+  }
+  function updatePhysicsDisplay(frame, total) {
+    var seg = timelineData ? findSegment(frame, timelineData.timeline) : null;
+    if (!seg || seg.mode !== 'simulate' || !seg.physics || !seg.physics.frames) return;
+    var d = seg.physics.frames[frame - seg.startFrame];
+    if (!d) return;
+    if (phyVel) phyVel.textContent = d.v != null ? d.v.toFixed(2) + 'm/s' : '0';
+    if (phyAcc) phyAcc.textContent = d.a != null ? d.a.toFixed(2) + 'm/s²' : '0';
+    if (phyEk) phyEk.textContent = d.Ek != null ? d.Ek.toFixed(1) + 'J' : '0';
+    if (phyEp) phyEp.textContent = d.Ep != null ? d.Ep.toFixed(1) + 'J' : '0';
+  }
+
+  // ─── 播放器控制 ───
+  function startPlayer(timeline) {
+    if (!timeline || !timeline.timeline) return;
+    if (engine) { engine.destroy(); engine = null; }
+    timelineData = timeline;
+    var meta = timeline.meta || {};
+    if (meta.width) canvas.width = meta.width;
+    if (meta.height) canvas.height = meta.height;
+    engine = startEngine('stage', timeline, {
+      onFrameUpdate: function(frame, total) {
+        seekBar.value = total > 0 ? Math.round(frame / (total - 1) * 100) : 0;
+        updateTimeDisplay(frame, total);
+        updatePhysicsDisplay(frame, total);
+      },
+      onSegmentChange: function(seg, prev) {
+        if (segName && seg) {
+          var a = seg.id ? seg.id.split('-')[0] : '';
+          segName.textContent = (a ? '第' + a + '幕 · ' : '') + seg.name;
+        }
+        if (physicsData) physicsData.classList.toggle('show', seg && seg.mode === 'simulate');
+      },
+      onComplete: function() { playBtn.textContent = '↺'; }
+    });
+    engine.resume();
+    playBtn.textContent = '⏸';
+  }
+
+  playBtn.addEventListener('click', function() {
+    if (!engine) return;
+    var s = engine.getState();
+    if (s.isComplete) { engine.seek(0); engine.resume(); this.textContent = '⏸'; }
+    else if (s.isPaused) { engine.resume(); this.textContent = '⏸'; }
+    else { engine.pause(); this.textContent = '▶'; }
+  });
+
   var isSeeking = false;
   seekBar.addEventListener('mousedown', function() { isSeeking = true; });
   seekBar.addEventListener('touchstart', function() { isSeeking = true; });
   seekBar.addEventListener('input', function() {
-    if (isSeeking) {
-      var total = TIMELINE.meta.totalFrames || 1;
+    if (isSeeking && engine && timelineData) {
+      var total = timelineData.meta.totalFrames || 1;
       var target = Math.round(this.value / 100 * total);
       engine.seek(target);
-      updateDisplay(target, total);
+      updateTimeDisplay(target, total);
+      updatePhysicsDisplay(target, total);
     }
   });
-  seekBar.addEventListener('change', function() {
-    isSeeking = false;
+  seekBar.addEventListener('change', function() { isSeeking = false; });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
   });
 
-  // 自动播放
-  engine.resume();
-  document.getElementById('btn-play').textContent = '⏸';
+  // ─── 显示分析结果 ───
+  function showAnalysis(result) {
+    var data = result.data;
+    // 解题过程
+    if (data.layer2_5_text) {
+      outSteps.textContent = data.layer2_5_text;
+    } else {
+      outSteps.textContent = JSON.stringify(data.layer2_5 || {}, null, 2);
+    }
+    // 分析结果 (Layer 1)
+    outAnalysis.textContent = JSON.stringify(data.layer1 || {}, null, 2);
+    // 幕结构 (Layer 2)
+    outStoryboard.textContent = JSON.stringify(data.layer2 || {}, null, 2);
+    // 分镜文稿 (Layer 3)
+    outScript.textContent = data.layer3_text || JSON.stringify(data.layer3 || {}, null, 2);
+  }
+
+  // ─── 分析题目 ───
+  function analyzeProblem() {
+    var text = inputEl.value.trim();
+    if (!text) { setStatus('请粘贴题目文本', 'error'); return; }
+    if (analyzing) return;
+    analyzing = true;
+    btnAnalyze.disabled = true;
+    btnAnalyze.textContent = '⏳ 分析中...';
+    setStatus('正在分析题目 ...', 'info');
+    btnGenerate.disabled = true;
+
+    fetch('/api/analyze/storyboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, useLLM: llmEnabled })
+    })
+    .then(function(r) { if (!r.ok) throw new Error('API 返回 ' + r.status); return r.json(); })
+    .then(function(resp) {
+      if (!resp.success) throw new Error(resp.error || '分析失败');
+      cachedAnalysis = resp;
+      showAnalysis(resp);
+      var mode = resp.data.timeline_mode || 'explain_only';
+      setStatus('✅ 分析完成 — ' + (mode === 'hybrid' ? '可生成视频' : '讲解模式'), 'success');
+    })
+    .catch(function(err) {
+      setStatus('❌ ' + err.message, 'error');
+      console.error(err);
+    })
+    .finally(function() {
+      analyzing = false;
+      btnAnalyze.disabled = false;
+      btnAnalyze.textContent = '🔍 分析题目';
+      btnGenerate.disabled = false;
+    });
+  }
+
+  // ─── 生成视频 ───
+  function generateVideo() {
+    var text = inputEl.value.trim();
+    if (!text) { setStatus('请粘贴题目文本', 'error'); return; }
+    loader.classList.add('show');
+    emptyState.style.display = 'none';
+    setStatus('正在生成动画 ...', 'info');
+    if (engine) { engine.destroy(); engine = null; }
+    timelineData = null;
+    btnGenerate.disabled = true;
+
+    // 如果没有做分析，先调 API；否则 timeline.json 可能已经是旧的
+    fetch('/api/analyze/storyboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, useLLM: llmEnabled })
+    })
+    .then(function(r) { if (!r.ok) throw new Error('API 返回 ' + r.status); return r.json(); })
+    .then(function(resp) {
+      if (!resp.success) throw new Error(resp.error || '生成失败');
+      if (!cachedAnalysis) { cachedAnalysis = resp; showAnalysis(resp); }
+      setStatus('动画已生成，加载中...', 'info');
+      return fetch('/timeline.json?_t=' + Date.now());
+    })
+    .then(function(r) { if (!r.ok) throw new Error('无法加载 timeline.json'); return r.json(); })
+    .then(function(data) {
+      startPlayer(data);
+      switchTab('player');
+      var modeLabel = data.meta.mode === 'hybrid' ? '混合模式' : '讲解模式';
+      setStatus('✅ 生成成功 — ' + modeLabel + ' | ' + data.meta.totalFrames + ' 帧', 'success');
+    })
+    .catch(function(err) {
+      setStatus('❌ ' + err.message, 'error');
+      console.error(err);
+      emptyState.style.display = 'flex';
+    })
+    .finally(function() {
+      btnGenerate.disabled = false;
+      loader.classList.remove('show');
+    });
+  }
+
+  btnAnalyze.addEventListener('click', analyzeProblem);
+  btnGenerate.addEventListener('click', generateVideo);
+  btnClear.addEventListener('click', function() {
+    inputEl.value = '';
+    if (engine) { engine.destroy(); engine = null; timelineData = null; }
+    ['output-steps', 'output-analysis', 'output-storyboard', 'output-script'].forEach(function(id) {
+      document.getElementById(id).textContent = '清空';
+    });
+    setStatus('已清空', '');
+    emptyState.style.display = 'flex';
+  });
+  inputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); analyzeProblem(); }
+  });
+
+  // ─── 快捷键 ───
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); analyzeProblem(); }
+    if (e.key === 'g' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); generateVideo(); }
+  });
+
+  // ─── 不自动加载旧的 timeline.json ───
+  // 用户必须主动点击「生成视频」来生成属于当前题目的动画
+  // 防止硬盘残留的旧 timeline.json 污染播放器
 })();
 </script>
 </body>

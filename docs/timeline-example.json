@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "totalFrames": 4800,
+    "fps": 60,
+    "width": 1280,
+    "height": 720
+  },
+  "timeline": [
+    {
+      "startFrame": 0,
+      "endFrame": 600,
+      "background": {
+        "component": "drawStarField",
+        "params": { "stars": 80, "rotationSpeed": 0.001, "twinkleIntensity": 0.5 }
+      },
+      "transition_in": { "duration": 15, "easing": "easeOut" },
+      "layers": [
+        {
+          "component": "drawCube",
+          "params": {
+            "cx": 640, "cy": 300,
+            "size": { "animate": { "from": 0, "to": 80, "duration": 45, "easing": "easeOutBack" } },
+            "rotX": { "type": "sin", "amplitude": 0.3, "period": 90 },
+            "rotY": { "type": "sin", "amplitude": 0.5, "period": 120 },
+            "color": "#88bbdd",
+            "label": "1 kg",
+            "opacity": { "animate": { "from": 0, "to": 1, "duration": 30 } }
+          }
+        },
+        {
+          "component": "drawTypewriterText",
+          "params": {
+            "cx": 640, "cy": 500,
+            "text": "质量与重力的区别",
+            "startFrame": 120,
+            "charsPerSecond": 8,
+            "color": "#ffffff",
+            "font": "28px sans-serif"
+          }
+        }
+      ]
+    },
+    {
+      "startFrame": 601,
+      "endFrame": 1800,
+      "background": {
+        "component": "drawEarthBackground",
+        "params": {
+          "clouds": [
+            { "x": 100, "y": 60, "w": 80, "h": 25, "speed": 0.3 },
+            { "x": 500, "y": 80, "w": 100, "h": 30, "speed": 0.2 }
+          ]
+        }
+      },
+      "transition_in": { "duration": 30 },
+      "layers": [
+        {
+          "component": "drawBalance",
+          "params": {
+            "cx": 320, "cy": 380,
+            "scale": 1,
+            "weight": 2.0,
+            "label": "⚖️ 质量 = 1.0 kg",
+            "highlight": true
+          }
+        },
+        {
+          "component": "drawSpringScale",
+          "params": {
+            "cx": 960, "cy": 380,
+            "scale": 1,
+            "weight": 5.0,
+            "label": "📏 重力 = 9.8 N",
+            "highlight": false
+          }
+        },
+        {
+          "component": "drawPopupLabel",
+          "params": {
+            "cx": 640, "cy": 120,
+            "width": 300,
+            "height": 50,
+            "text": "地球表面 g = 9.8 m/s²",
+            "textColor": "#4FC3F7",
+            "bgColor": "rgba(0,0,0,0.6)",
+            "popStartFrame": 660,
+            "popDuration": 30
+          }
+        }
+      ]
+    },
+    {
+      "startFrame": 1801,
+      "endFrame": 3000,
+      "background": {
+        "component": "drawMoonBackground",
+        "params": {
+          "craters": [
+            { "x": 200, "y": 350, "rx": 30, "ry": 15, "depth": 0.5 },
+            { "x": 500, "y": 320, "rx": 20, "ry": 10, "depth": 0.3 }
+          ],
+          "earthPosition": { "x": 120, "y": 60 }
+        }
+      },
+      "transition_in": { "duration": 30 },
+      "layers": [
+        {
+          "component": "drawBalance",
+          "params": {
+            "cx": 320, "cy": 380,
+            "scale": 1,
+            "weight": 2.0,
+            "label": "⚖️ 质量 = 1.0 kg（不变！）",
+            "highlight": true
+          }
+        },
+        {
+          "component": "drawSpringScale",
+          "params": {
+            "cx": 960, "cy": 380,
+            "scale": 1,
+            "weight": 0.8,
+            "label": "📏 重力 ≈ 1.6 N",
+            "highlight": true
+          }
+        }
+      ]
+    },
+    {
+      "startFrame": 3001,
+      "endFrame": 4200,
+      "background": { "type": "color", "color": "#0a0e1a" },
+      "transition_in": { "duration": 30, "easing": "easeInOut" },
+      "layers": [
+        {
+          "component": "drawSplitScreenDivider",
+          "params": { "splitX": 640, "color": "#ffffff" }
+        },
+        {
+          "component": "drawFormulaBoard",
+          "params": {
+            "cx": 320, "cy": 360,
+            "formula": "G = mg",
+            "variables": [
+              { "symbol": "G", "name": "重力 (N)", "color": "#FF9800" },
+              { "symbol": "m", "name": "质量 (kg)", "color": "#4CAF50" },
+              { "symbol": "g", "name": "重力加速度 (m/s²)", "color": "#42A5F5" }
+            ],
+            "opacity": { "animate": { "from": 0, "to": 1, "duration": 30 } }
+          }
+        },
+        {
+          "component": "drawPopupLabel",
+          "params": {
+            "cx": 640, "cy": 200,
+            "width": 350,
+            "height": 60,
+            "text": "✅ 质量不变，重力随g变化",
+            "textColor": "#4CAF50",
+            "bgColor": "rgba(0,0,0,0.5)",
+            "borderColor": "#4CAF50",
+            "popStartFrame": 3060,
+            "popDuration": 40
+          }
+        }
+      ]
+    },
+    {
+      "startFrame": 4201,
+      "endFrame": 4800,
+      "transition_in": { "duration": 30 },
+      "layers": [
+        {
+          "component": "drawTextBlock",
+          "params": {
+            "cx": 640, "cy": 300,
+            "text": "接下来，我们看一道真题\n如何运用这两个概念",
+            "font": "28px sans-serif",
+            "color": "#ffffff",
+            "opacity": { "animate": { "from": 0, "to": 1, "duration": 45 } }
+          }
+        }
+      ]
+    }
+  ]
+}

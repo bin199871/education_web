@@ -230,6 +230,155 @@ function drawBackground(ctx, background, frame) {
 /* ─── 引擎主函数 ─── */
 
 /**
+ * 校验 timeline 数据结构的完整性。
+ * 校验失败时 console.error 输出具体错误，不会抛异常。
+ *
+ * @param {object} timelineData
+ * @returns {boolean} 是否通过校验
+ */
+function validateTimeline(timelineData) {
+  var errors = [];
+  var warnings = [];
+
+  if (!timelineData || typeof timelineData !== 'object') {
+    errors.push('timelineData 不是有效对象');
+    logErrors(errors);
+    return false;
+  }
+
+  var meta = timelineData.meta || {};
+  var totalFrames = meta.totalFrames;
+  var timeline = timelineData.timeline || [];
+
+  // 1. meta.totalFrames
+  if (!totalFrames || typeof totalFrames !== 'number' || totalFrames <= 0 || !Number.isInteger(totalFrames)) {
+    errors.push('meta.totalFrames 必须为正整数，当前值: ' + JSON.stringify(totalFrames));
+  }
+
+  // 2. timeline 是数组
+  if (!Array.isArray(timeline)) {
+    errors.push('timeline 必须是数组');
+    logErrors(errors);
+    return false;
+  }
+  if (timeline.length === 0) {
+    warnings.push('timeline 为空数组，没有可播放内容');
+  }
+
+  var frameMap = {}; // 用于检测重叠
+
+  for (var si = 0; si < timeline.length; si++) {
+    var seg = timeline[si];
+    var idx = 'timeline[' + si + ']';
+
+    if (!seg || typeof seg !== 'object') {
+      errors.push(idx + ' 不是有效对象');
+      continue;
+    }
+
+    var sf = seg.startFrame;
+    var ef = seg.endFrame;
+
+    // 3. startFrame / endFrame
+    if (typeof sf !== 'number' || !Number.isFinite(sf)) {
+      errors.push(idx + '.startFrame 不是有效数字');
+    }
+    if (typeof ef !== 'number' || !Number.isFinite(ef)) {
+      errors.push(idx + '.endFrame 不是有效数字');
+    }
+    if (typeof sf === 'number' && typeof ef === 'number') {
+      if (ef <= sf) {
+        errors.push(idx + '.endFrame (' + ef + ') 必须大于 startFrame (' + sf + ')');
+      }
+      // 检测重叠
+      for (var f = sf; f <= ef; f++) {
+        if (frameMap[f]) {
+          errors.push(idx + ' 帧 ' + f + ' 与 ' + frameMap[f] + ' 重叠');
+          break;
+        }
+        frameMap[f] = idx;
+      }
+    }
+
+    // 4. mode 字段（可选，兼容 explain 和 simulate）
+    var isSimMode = seg.mode === 'simulate';
+
+    // 4a. physics 字段（simulate 模式必需）
+    if (isSimMode) {
+      var physics = seg.physics;
+      if (!physics || typeof physics !== 'object') {
+        errors.push(idx + '.physics 字段缺失或格式错误（simulate 模式下必需）');
+      } else if (!Array.isArray(physics.frames)) {
+        errors.push(idx + '.physics.frames 必须是数组');
+      } else if (physics.frames.length === 0) {
+        warnings.push(idx + '.physics.frames 为空数组');
+      }
+    }
+
+    // 4b. layers 格式（simulate 模式可选，explain 模式必需）
+    var layers = seg.layers;
+    if (layers !== undefined) {
+      if (!Array.isArray(layers)) {
+        errors.push(idx + '.layers 必须是数组');
+      } else {
+        for (var li = 0; li < layers.length; li++) {
+          var layer = layers[li];
+          if (!layer || typeof layer !== 'object') {
+            errors.push(idx + '.layers[' + li + '] 不是有效对象');
+            continue;
+          }
+          if (!layer.component || typeof layer.component !== 'string') {
+            errors.push(idx + '.layers[' + li + '] 缺少 component 字段');
+          } else {
+            // 检查组件是否存在
+            var compExists = (typeof window !== 'undefined' && window.Components && window.Components[layer.component]);
+            if (!compExists) {
+              warnings.push(idx + '.layers[' + li + '] 组件 "' + layer.component + '" 未在 Components 中找到');
+            }
+          }
+          if (!layer.params || typeof layer.params !== 'object') {
+            warnings.push(idx + '.layers[' + li + '] 缺少 params 对象');
+          }
+        }
+      }
+    }
+
+    // 5. background
+    var bg = seg.background;
+    if (bg !== undefined) {
+      if (typeof bg === 'object' && bg !== null && !Array.isArray(bg)) {
+        if (bg.component && typeof window !== 'undefined' && window.Components) {
+          if (!window.Components[bg.component]) {
+            warnings.push(idx + '.background.component "' + bg.component + '" 未找到');
+          }
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    logErrors(errors, 'ERROR');
+  }
+  if (warnings.length > 0) {
+    logErrors(warnings, 'WARN');
+  }
+
+  return errors.length === 0;
+}
+
+function logErrors(items, level) {
+  level = level || 'ERROR';
+  var prefix = level === 'ERROR' ? '❌ [Timeline校验]' : '⚠️ [Timeline校验]';
+  for (var i = 0; i < items.length; i++) {
+    if (level === 'ERROR') {
+      console.error(prefix, items[i]);
+    } else {
+      console.warn(prefix, items[i]);
+    }
+  }
+}
+
+/**
  * 启动时间轴渲染引擎。
  *
  * @param {string} canvasId - canvas 元素的 id
@@ -244,6 +393,12 @@ function startEngine(canvasId, timelineData, callbacks) {
   var canvas = document.getElementById(canvasId);
   if (!canvas) {
     throw new Error('Canvas element not found: ' + canvasId);
+  }
+
+  // 校验 timeline 数据
+  var isValid = validateTimeline(timelineData);
+  if (!isValid) {
+    console.warn('[Engine] timeline 校验发现错误，尝试继续播放，但可能出现异常');
   }
 
   var ctx = canvas.getContext('2d');
@@ -352,6 +507,9 @@ function startEngine(canvasId, timelineData, callbacks) {
 
     // 绘制所有层
     var layers = segment.layers || [];
+    var isSimMode = segment.mode === 'simulate';
+    var localFrame = frame - segment.startFrame;
+
     for (var li = 0; li < layers.length; li++) {
       var layer = layers[li];
       var componentName = layer.component;
@@ -365,6 +523,11 @@ function startEngine(canvasId, timelineData, callbacks) {
         }
       }
 
+      // 🔬 双模式：simulate 片段注入物理帧数据
+      if (isSimMode && segment.physics && segment.physics.frames) {
+        resolvedParams.frames = segment.physics.frames;
+      }
+
       var drawFunc = null;
       if (typeof window !== 'undefined' && window.Components) {
         drawFunc = window.Components[componentName];
@@ -372,7 +535,9 @@ function startEngine(canvasId, timelineData, callbacks) {
 
       if (drawFunc) {
         ctx.save();
-        drawFunc(ctx, resolvedParams, frame);
+        // simulate 模式下用局部帧索引（物理组件用 frames[localFrame]）
+        var componentFrame = isSimMode ? localFrame : frame;
+        drawFunc(ctx, resolvedParams, componentFrame);
         ctx.restore();
       }
     }

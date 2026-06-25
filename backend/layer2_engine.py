@@ -14,6 +14,8 @@ Layer 2 — 幕结构匹配引擎
 
 import copy
 import json
+import re
+from physics_param_extractor import extract_physics_params
 
 
 # ==================================================================
@@ -232,6 +234,39 @@ ACT3_TEMPLATE = {
             }
         }
     ]
+}
+
+# 物理仿真片段模板（供 Act 1 中替换传统讲解片段）
+SIMULATE_PHYSICS_TEMPLATE = {
+    "id": "1-sim",
+    "name": "🔬 物理仿真",
+    "mode": "simulate",
+    "scene_type": "simulate_physics",
+    "description": "物理过程实时仿真：物体在真实物理规律下运动",
+    "duration_sec": 10,
+    "components": ["drawPhysicsStage", "drawPhysicsObject",
+                   "drawPhysicsHUD", "drawPhaseLabel"],
+    "background_lookup": "physics_lab",
+    "transitions": {
+        "in": {"type": "fade_in", "duration_frames": _frames(1)},
+        "out": {"type": "fade_out", "duration_frames": _frames(1)}
+    }
+}
+
+# 关键洞察片段（仿真后弹出结论，替代原场景A/B对比）
+KEY_INSIGHT_TEMPLATE = {
+    "id": "1-insight",
+    "name": "关键洞察",
+    "mode": "explain",
+    "scene_type": "simulate_insight",
+    "description": "仿真结束后弹出关键物理量变化结论",
+    "duration_sec": 10,
+    "components": ["drawPopupLabel", "drawTypewriterText"],
+    "background_lookup": "deep_space",
+    "transitions": {
+        "in": {"type": "fade_in", "duration_frames": _frames(1)},
+        "out": {"type": "fade_out", "duration_frames": _frames(1)}
+    }
 }
 
 
@@ -578,6 +613,13 @@ class ActPlanGenerator:
             elif isinstance(s, str):
                 self.scene_names.append(s[:20])
 
+        # ── 双模式扩展：物理参数检测 ──
+        self.physics_params = layer1_result.get("physics_params", {})
+        self.physics_phases = layer1_result.get("physics_phases", [])
+        self.has_physics_sim = bool(self.physics_phases) or bool(
+            self.physics_params.get("mass") and self._detect_physics_from_text()
+        )
+
     def _match_visual_theme(self) -> dict:
         """根据 Layer 1 的核心概念匹配视觉主题。"""
         concept_name = self.core_concept.get("name", "")
@@ -616,8 +658,147 @@ class ActPlanGenerator:
                     return labels
         return dict(DEFAULT_SCENE_LABELS)
 
+    # ── 双模式：物理仿真检测 ──
+
+    def _detect_physics_from_text(self) -> bool:
+        """从 Layer 1 的原始文本中检测是否有可仿真的物理参数。"""
+        raw = self.layer1.get("_raw_text", "")
+        if not raw:
+            return False
+        # 检测关键物理量关键词
+        physics_kw = ["质量", "斜面", "摩擦", "拉力", "倾角",
+                      "自由落体", "平抛", "速度", "加速度", "g=",
+                      "m=", "μ=", "F=", "动能", "势能"]
+        has_kw = any(kw in raw for kw in physics_kw)
+        # 检测数字+单位模式（如 "2 kg", "37°", "0.4"）
+        has_num = bool(re.search(r'\d+\s*(kg|m|°|N|s|m/s)', raw))
+        return has_kw and has_num
+
+    def _build_physics_simulation_segment(self) -> dict:
+        """构建物理仿真片段（mode=simulate）。
+
+        返回一个包含物理阶段定义的 segment dict，
+        供 Layer 3 展开和 Layer 4 调用仿真器。
+        """
+        seg = copy.deepcopy(SIMULATE_PHYSICS_TEMPLATE)
+
+        # 优先使用从文本提取的阶段
+        phases = self.physics_phases
+        params = self.physics_params
+
+        if not phases:
+            # 手动构建：用检测到的参数生成阶段
+            phases = self._infer_phases_from_params(params)
+
+        seg["physics"] = {
+            "phases": phases,
+            "params": params,
+            "fps": 30,
+            "visual_config": {
+                "hud": {"showVelocity": True, "showEnergy": True,
+                        "showAcceleration": True},
+                "stage": {
+                    "type": self._infer_stage_type(phases),
+                    "angle": params.get("angle_deg", 0),
+                    "mu": params.get("mu", 0),
+                }
+            }
+        }
+
+        # 计算帧（暂用固定时长，Layer 4 中会按实际仿真帧数调整）
+        seg["start_frame"] = 0
+        seg["end_frame"] = _frames(10)
+        seg["total_frames"] = _frames(10)
+
+        return seg
+
+    def _build_simulate_insight_segment(self, prev_end_frame: int) -> dict:
+        """构建关键洞察片段（仿真后弹出的结论）。"""
+        seg = copy.deepcopy(KEY_INSIGHT_TEMPLATE)
+        params = self.physics_params
+
+        # 根据物理参数生成洞察文本
+        insights = []
+        if params.get("max_velocity"):
+            insights.append(f"⚡ 最大速度 {params['max_velocity']} m/s")
+        if params.get("final_velocity") == 0:
+            insights.append("🛑 物体最终停止在粗糙面上")
+        insights.append("📊 动能转化为热能，机械能不守恒")
+
+        seg["params"] = {
+            "insights": insights,
+            "formula": self.core_concept.get("key_formula", ""),
+            "concept_name": self.core_concept.get("name", ""),
+        }
+
+        seg["start_frame"] = prev_end_frame + 1
+        seg["end_frame"] = prev_end_frame + _frames(10)
+        return seg
+
+    def _infer_phases_from_params(self, params: dict) -> list:
+        """从检测到的物理参数推断物理阶段。"""
+        phases = []
+        has_slope = params.get("angle_deg") and params.get("slope_length")
+        has_rough = params.get("mu") is not None
+        has_pull = params.get("force")
+
+        mass = params.get("mass", 1)
+        g = params.get("g", 10)
+
+        if has_slope:
+            phases.append({
+                "type": "slope",
+                "params": {
+                    "angle_deg": params["angle_deg"],
+                    "length": params.get("slope_length", 3),
+                    "mass": mass, "g": g,
+                }
+            })
+
+        if has_rough:
+            rough_dur = None
+            if has_pull:
+                rough_dur = params.get("time", 1.0)
+            phases.append({
+                "type": "rough_surface",
+                "params": {"mu": params["mu"], "mass": mass, "g": g},
+                "max_duration": rough_dur,
+            })
+
+        if has_pull:
+            phases.append({
+                "type": "horizontal_pull",
+                "params": {
+                    "force": params["force"],
+                    "mu": params.get("mu", 0),
+                    "mass": mass, "g": g,
+                },
+                "max_duration": 2.0,
+            })
+
+        return phases
+
+    def _infer_stage_type(self, phases: list) -> str:
+        """根据物理阶段推断场景类型标识。"""
+        types = [p["type"] for p in phases]
+        if "slope" in types:
+            return "slope+surface"
+        if "free_fall" in types or "vertical_throw" in types:
+            return "free_fall"
+        if "projectile" in types:
+            return "projectile"
+        if "circular" in types:
+            return "circular"
+        return "surface"
+
     def _build_act1(self) -> dict:
-        """构建第一幕配置。"""
+        """构建第一幕配置。
+        当检测到物理参数时，使用[开场→物理仿真→关键洞察]替代传统[场景A/B对比]结构。
+        """
+        if self.has_physics_sim:
+            return self._build_act1_hybrid()
+
+        # 传统模式（无物理仿真）
         act = copy.deepcopy(ACT1_TEMPLATE)
         scene_a = self._scene_a_name()
         scene_b = self._scene_b_name()
@@ -625,7 +806,6 @@ class ActPlanGenerator:
         formula = self.core_concept.get("key_formula", "")
         concept_name = self.core_concept.get("name", "")
 
-        # 填充片段参数
         seg_map = {s["id"]: s for s in act["segments"]}
 
         # 1-1 开场引入
@@ -651,7 +831,6 @@ class ActPlanGenerator:
                 "spring_weight": 5.0,
                 "g_value": "9.8 m/s²"
             }
-            # 如有场景分析，填充 motion/force 信息
             for scene in self.scenario.get("scenes", []):
                 if scene["name"] == scene_a:
                     seg_map["1-2"].setdefault("annotations", {})
@@ -695,8 +874,70 @@ class ActPlanGenerator:
                 "meteor_count": 1
             }
 
-        # 计算帧
         self._apply_frames(act)
+        return act
+
+    def _build_act1_hybrid(self) -> dict:
+        """构建混合模式的第一幕：[开场→物理仿真→关键洞察→过渡]"""
+        concept_name = self.core_concept.get("name", "")
+        formula = self.core_concept.get("key_formula", "")
+
+        # 1-1 开场引入（缩短版）
+        intro_seg = copy.deepcopy(ACT1_TEMPLATE["segments"][0])
+        intro_seg["id"] = "1-1"
+        intro_seg["duration_sec"] = 5  # 缩短到5秒
+        intro_seg["params"] = {
+            "title": concept_name or "物理原理",
+            "subtitle": f"🔬 {self.subject} · 原理可视化",
+            "cube_label": "🔬",
+            "concept_labels": [{"text": "观察", "color": "#4CAF50"},
+                               {"text": "思考", "color": "#FF9800"}]
+        }
+
+        # 1-sim 物理仿真（核心）
+        sim_seg = self._build_physics_simulation_segment()
+        sim_seg["id"] = "1-sim"
+
+        # 1-insight 关键洞察（仿真后弹出）
+        insight_seg = self._build_simulate_insight_segment(0)
+        insight_seg["id"] = "1-insight"
+
+        # 1-trans 过渡到题目
+        trans_seg = copy.deepcopy(ACT1_TEMPLATE["segments"][4])
+        trans_seg["id"] = "1-trans"
+        trans_seg["duration_sec"] = 5
+        trans_seg["params"] = {
+            "transition_text": f"掌握了物理规律，来看这道题如何运用",
+            "meteor_count": 0
+        }
+
+        segments = [intro_seg, sim_seg, insight_seg, trans_seg]
+
+        # 计算帧
+        current_frame = 0
+        for seg in segments:
+            frames = _frames(seg["duration_sec"]) if seg.get("duration_sec") else _frames(10)
+            seg["start_frame"] = current_frame
+            seg["end_frame"] = current_frame + frames
+            if "mode" not in seg:
+                seg["mode"] = "explain"
+            current_frame += frames + 1
+
+        act = {
+            "act_number": 1,
+            "act_name": "🔬 原理可视化",
+            "core_task": "用物理仿真替代抽象讲解，让学生亲眼看到物理过程",
+            "suggested_duration": "30-60秒",
+            "segments": segments,
+            "total_frames": current_frame,
+            "total_duration_sec": current_frame // FPS,
+        }
+
+        # 注入背景和配色
+        for seg in segments:
+            seg["background_config"] = self._get_background_for(1, "1-1")
+            seg["color_scheme"] = self.visual_theme.get("colors", {})
+
         return act
 
     def _build_act2(self) -> dict:
@@ -816,6 +1057,23 @@ class ActPlanGenerator:
 
     def _get_background_for(self, act_number: int, segment_id: str) -> dict:
         """为指定片段获取背景配置。"""
+        # 处理双模式新增的片段ID
+        sim_bg_map = {
+            "1-sim": "physics_lab",
+            "1-insight": "deep_space",
+            "1-trans": "deep_space",
+        }
+        if segment_id in sim_bg_map:
+            bg_key = sim_bg_map[segment_id]
+            bg = self.visual_theme.get("backgrounds", {}).get(bg_key)
+            if bg:
+                return bg
+            # 物理仿真专用深色背景（兜底）
+            if segment_id == "1-sim":
+                return {"type": "color", "color": "#0a0e1a"}
+            return DEFAULT_VISUAL_THEME["backgrounds"]["deep_space"]
+
+        # 传统模式模板匹配
         act_key = f"act{act_number}"
         templates = {1: ACT1_TEMPLATE, 2: ACT2_TEMPLATE, 3: ACT3_TEMPLATE}
         tmpl = templates.get(act_number, ACT1_TEMPLATE)
@@ -869,7 +1127,9 @@ class ActPlanGenerator:
                 "fps": FPS,
                 "visual_theme_name": self.visual_theme.get("name", "通用课堂"),
                 "color_scheme": self.visual_theme.get("colors", {}),
-                "ambient": self.visual_theme.get("ambient", {})
+                "ambient": self.visual_theme.get("ambient", {}),
+                "has_simulation": self.has_physics_sim,
+                "mode": "hybrid" if self.has_physics_sim else "explain_only",
             },
             "acts": acts
         }

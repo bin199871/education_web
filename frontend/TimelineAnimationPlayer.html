@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎬 时间轴动画播放器框架</title>
+    <style>
+        /* ===== 全局重置 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0b0e1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+            padding: 12px;
+        }
+
+        /* ===== 播放器容器 ===== */
+        .player {
+            position: relative;
+            width: 100%;
+            max-width: 1100px;
+            aspect-ratio: 16 / 9;
+            background: radial-gradient(circle at 30% 20%, #131b33, #070a12);
+            border-radius: 28px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,215,0,0.12);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ===== 场景容器 ===== */
+        .scene-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .scene {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 30px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+        .scene.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ===== 星星背景 ===== */
+        .stars {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle var(--d, 3s) infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.15; }
+            100% { opacity: 1; }
+        }
+
+        /* ===== 控制栏 ===== */
+        .controls {
+            position: absolute;
+            bottom: 16px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            padding: 8px 18px;
+            border-radius: 40px;
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .controls button {
+            background: none;
+            border: none;
+            color: #d0dfff;
+            font-size: 22px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls button:hover {
+            background: rgba(255, 215, 0, 0.12);
+            color: #f6d365;
+        }
+        .controls button.speed-btn {
+            font-size: 14px;
+            font-weight: 700;
+            width: 44px;
+            color: #9aa9c9;
+        }
+        .controls button.speed-btn:hover { color: #f6d365; }
+        .controls button.speed-btn.active { color: #f6d365; }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #2a3a5a;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            min-width: 60px;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f6d365, #fda085);
+            border-radius: 4px;
+            transition: width 0.05s linear;
+        }
+        .time-label {
+            color: #9aa9c9;
+            font-size: 13px;
+            min-width: 90px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== 元素通用显隐类 ===== */
+        .hidden { display: none !important; }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 700px) {
+            .scene { padding: 12px 16px; }
+            .controls { padding: 6px 12px; gap: 8px; }
+            .controls button { width: 32px; height: 32px; font-size: 18px; }
+            .time-label { font-size: 11px; min-width: 70px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="player" id="player">
+    <!-- 星星 -->
+    <div class="stars" id="starsContainer"></div>
+
+    <!-- 场景容器 -->
+    <div class="scene-container" id="sceneContainer">
+        <!-- 场景由 JavaScript 动态生成 -->
+    </div>
+
+    <!-- 控制栏 -->
+    <div class="controls" id="controls">
+        <button id="playBtn" title="播放/暂停">▶</button>
+        <button id="rewindBtn" title="回到开头">⏮</button>
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="time-label" id="timeLabel">0:00 / 0:00</span>
+        <button class="speed-btn" id="speedBtn" title="切换速度">1×</button>
+    </div>
+</div>
+
+<script>
+    // ================================================================
+    //  🎬 时间轴动画播放器框架 - 完整实现
+    //  使用方式：替换 timelineData 即可生成不同动画
+    // ================================================================
+
+    (function() {
+        'use strict';
+
+        // =============================================================
+        //  1. 📊 时间线数据（这是你唯一需要修改的部分！）
+        //     格式说明：
+        //     - totalDuration: 总时长（秒）
+        //     - scenes: 场景列表 { id, start, end, bg? }
+        //     - timeline: 事件列表 { time, action, target, value?, duration? }
+        // =============================================================
+        const timelineData = {
+            totalDuration: 80,
+
+            scenes: [
+                { id: 'scene1', start: 0, end: 45, bg: 'radial-gradient(circle at 20% 30%, #0f1a2f, #03050b)' },
+                { id: 'scene2', start: 45, end: 65, bg: 'linear-gradient(145deg, #0e1629, #030712)' },
+                { id: 'scene3', start: 65, end: 80, bg: 'radial-gradient(circle at 60% 30%, #1b1f3b, #070a15)' }
+            ],
+
+            // ---------- 场景1 的元素定义 (HTML) ----------
+            sceneElements: {
+                scene1: `
+                    <div id="cubeContainer" style="width:120px;height:120px;perspective:600px;margin-bottom:16px;">
+                        <div id="cube" style="width:100%;height:100%;transform-style:preserve-3d;opacity:0;">
+                            <div class="cube-face face-front">⚡</div>
+                            <div class="cube-face face-back">🧊</div>
+                            <div class="cube-face face-right">1</div>
+                            <div class="cube-face face-left">kg</div>
+                            <div class="cube-face face-top">⚖️</div>
+                            <div class="cube-face face-bottom">🔬</div>
+                        </div>
+                    </div>
+                    <style>
+                        .cube-face {
+                            position: absolute;
+                            width: 120px;
+                            height: 120px;
+                            background: rgba(180,200,255,0.06);
+                            border: 2px solid rgba(255,215,0,0.4);
+                            border-radius: 18px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 28px;
+                            color: #ffd966;
+                            backdrop-filter: blur(2px);
+                            box-shadow: inset 0 0 40px rgba(255,215,0,0.05);
+                        }
+                        .face-front { transform: rotateY(0deg) translateZ(60px); }
+                        .face-back { transform: rotateY(180deg) translateZ(60px); }
+                        .face-right { transform: rotateY(90deg) translateZ(60px); }
+                        .face-left { transform: rotateY(-90deg) translateZ(60px); }
+                        .face-top { transform: rotateX(90deg) translateZ(60px); }
+                        .face-bottom { transform: rotateX(-90deg) translateZ(60px); }
+                        @keyframes flyIn {
+                            0% { transform: rotateX(60deg) rotateY(180deg) translateX(400px) translateY(-200px) scale(0.2); opacity: 0; }
+                            60% { transform: rotateX(-5deg) rotateY(30deg) translateX(-10px) translateY(15px) scale(1.1); opacity: 1; }
+                            100% { transform: rotateX(-10deg) rotateY(25deg) translateY(0px) scale(1); opacity: 1; }
+                        }
+                        @keyframes float {
+                            0%, 100% { transform: rotateX(-10deg) rotateY(25deg) translateY(0px); }
+                            50% { transform: rotateX(-8deg) rotateY(35deg) translateY(-12px); }
+                        }
+                        .tag {
+                            display: inline-block;
+                            font-size: 28px;
+                            font-weight: 700;
+                            padding: 6px 24px;
+                            border-radius: 60px;
+                            background: rgba(0,0,0,0.5);
+                            margin: 4px 8px;
+                            opacity: 0;
+                            transform: scale(0.6);
+                            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+                            backdrop-filter: blur(4px);
+                            border: 1px solid transparent;
+                        }
+                        .tag.show { opacity: 1; transform: scale(1); }
+                        .tag.mass { color: #7bed9f; border-color: #7bed9f; }
+                        .tag.weight { color: #ffb347; border-color: #ffb347; }
+                        .sub { color: #9aa9c9; font-size: 18px; letter-spacing: 3px; opacity: 0; transition: opacity 1s; margin-top: 6px; }
+                        .sub.show { opacity: 0.9; }
+                        .card {
+                            background: rgba(10,20,40,0.7);
+                            padding: 14px 20px;
+                            border-radius: 20px;
+                            text-align: center;
+                            opacity: 0;
+                            transform: translateY(30px);
+                            transition: all 0.7s ease;
+                            min-width: 150px;
+                            backdrop-filter: blur(4px);
+                            border: 1px solid rgba(255,255,255,0.05);
+                        }
+                        .card.show { opacity: 1; transform: translateY(0); }
+                        .card .ctitle { color: #b7cdff; font-weight: 600; font-size: 15px; }
+                        .card .val { font-size: 20px; font-weight: 700; display: block; margin-top: 3px; }
+                        .card .val.green { color: #7bed9f; }
+                        .card .val.orange { color: #ffb347; }
+                        .conclusion {
+                            font-size: 24px;
+                            font-weight: 700;
+                            text-align: center;
+                            line-height: 1.6;
+                            margin: 10px 0;
+                            opacity: 0;
+                            transform: scale(0.8);
+                            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+                        }
+                        .conclusion.show { opacity: 1; transform: scale(1); }
+                        .conclusion .g { color: #7bed9f; }
+                        .conclusion .o { color: #ffb347; }
+                        .cards { display: flex; gap: 24px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+                        @media (max-width:700px) {
+                            .cube-face { width:80px; height:80px; font-size:20px; }
+                            .face-front { transform: rotateY(0deg) translateZ(40px); }
+                            .face-back { transform: rotateY(180deg) translateZ(40px); }
+                            .face-right { transform: rotateY(90deg) translateZ(40px); }
+                            .face-left { transform: rotateY(-90deg) translateZ(40px); }
+                            .face-top { transform: rotateX(90deg) translateZ(40px); }
+                            .face-bottom { transform: rotateX(-90deg) translateZ(40px); }
+                            .tag { font-size: 20px; padding: 4px 14px; }
+                            .conclusion { font-size: 18px; }
+                            .cards { flex-direction: column; gap: 10px; align-items: center; }
+                            #cubeContainer { width:80px; height:80px; }
+                        }
+                    </style>
+                    <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-bottom:4px;">
+                        <span class="tag mass" id="tagMass">⚖️ 质量</span>
+                        <span class="tag weight" id="tagWeight">📏 重力</span>
+                    </div>
+                    <div class="sub" id="subLine">物理 · 核心概念</div>
+                    <div class="cards">
+                        <div class="card" id="cardA">
+                            <div class="ctitle">🏔️ 斜面 (机械能守恒)</div>
+                            <span class="val green">质量 1.0 kg</span>
+                            <span class="val orange">重力 9.8 N</span>
+                        </div>
+                        <div class="card" id="cardB">
+                            <div class="ctitle">❄️ 水平雪道 (动能定理)</div>
+                            <span class="val green">质量 1.0 kg</span>
+                            <span class="val orange" id="weightB">重力 9.8 N</span>
+                        </div>
+                    </div>
+                    <div class="conclusion" id="conclusion">
+                        <span class="g">✅ 质量 —— 不随位置改变</span><br>
+                        <span class="o">✅ 重力 —— 随引力变化</span>
+                    </div>
+                `,
+
+                scene2: `
+                    <style>
+                        .paper {
+                            background: #f5efe6;
+                            border-radius: 24px;
+                            padding: 28px 30px;
+                            max-width: 700px;
+                            width: 100%;
+                            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+                            color: #1e2a3a;
+                            opacity: 0;
+                            transform: scale(0.95);
+                            transition: all 0.6s cubic-bezier(0.23,1,0.32,1);
+                        }
+                        .paper.show { opacity: 1; transform: scale(1); }
+                        .paper .stamp {
+                            display: inline-block;
+                            background: #c0392b;
+                            color: #fff;
+                            font-weight: 700;
+                            padding: 3px 18px;
+                            border-radius: 40px;
+                            font-size: 15px;
+                            letter-spacing: 2px;
+                            margin-bottom: 10px;
+                        }
+                        .paper .q {
+                            font-size: 17px;
+                            line-height: 1.8;
+                            font-weight: 500;
+                            color: #1a2639;
+                        }
+                        .paper .q strong { color: #0b1a33; }
+                        @media (max-width:700px) {
+                            .paper { padding: 18px; }
+                            .paper .q { font-size: 15px; }
+                        }
+                    </style>
+                    <div class="paper" id="paper">
+                        <div class="stamp">📝 真题演练</div>
+                        <div class="q">
+                            <strong>一名滑雪爱好者</strong>从倾角为 30° 的光滑斜面顶端由静止开始滑下。<br>
+                            斜面竖直高度 <strong>h = 20 m</strong>。滑到底端后进入粗糙水平雪道，<br>
+                            动摩擦因数 <strong>μ = 0.2</strong>，g = 10 m/s²，空气阻力忽略。
+                            <br><br>
+                            <span style="color:#1a2639;">(1) 到达斜面底端时的速度 v = ？</span><br>
+                            <span style="color:#1a2639;">(2) 水平雪道上滑行的最大距离 x = ？</span>
+                        </div>
+                        <div style="margin-top:16px; color:#f6d365; font-size:20px; font-weight:700; opacity:0; transition:opacity 1s;" id="answerReveal">
+                            ✅ v = 20 m/s, x = 100 m
+                        </div>
+                    </div>
+                `,
+
+                scene3: `
+                    <style>
+                        .nebula-bg {
+                            position: absolute;
+                            inset: 0;
+                            background: radial-gradient(circle at 20% 40%, rgba(120,80,255,0.08), transparent 50%),
+                                        radial-gradient(circle at 80% 70%, rgba(255,180,50,0.06), transparent 40%);
+                            pointer-events: none;
+                        }
+                        .infinity-sym {
+                            font-size: 80px;
+                            color: #f6d365;
+                            text-shadow: 0 0 80px rgba(246,211,101,0.25);
+                            opacity: 0;
+                            transform: rotate(-20deg) scale(0.5);
+                            transition: all 1.2s cubic-bezier(0.23,1,0.32,1);
+                        }
+                        .infinity-sym.show { opacity: 1; transform: rotate(0deg) scale(1); }
+                        .summary-title {
+                            font-size: 34px;
+                            font-weight: 700;
+                            color: #f6d365;
+                            text-shadow: 0 0 60px rgba(246,211,101,0.15);
+                            opacity: 0;
+                            transform: scale(0.8);
+                            transition: all 0.8s cubic-bezier(0.34,1.56,0.64,1);
+                            text-align: center;
+                            margin-top: 8px;
+                        }
+                        .summary-title.show { opacity: 1; transform: scale(1); }
+                        .summary-sub {
+                            font-size: 18px;
+                            color: #b7c9e8;
+                            max-width: 500px;
+                            text-align: center;
+                            line-height: 1.6;
+                            opacity: 0;
+                            transition: opacity 1.2s;
+                            margin-top: 8px;
+                        }
+                        .summary-sub.show { opacity: 0.9; }
+                        .credit {
+                            color: #6a7fa0;
+                            font-size: 15px;
+                            letter-spacing: 4px;
+                            opacity: 0;
+                            transition: opacity 1.5s;
+                            margin-top: 16px;
+                        }
+                        .credit.show { opacity: 1; }
+                        @media (max-width:700px) {
+                            .infinity-sym { font-size: 56px; }
+                            .summary-title { font-size: 24px; }
+                            .summary-sub { font-size: 15px; }
+                        }
+                    </style>
+                    <div class="nebula-bg"></div>
+                    <div style="display:flex; flex-direction:column; align-items:center; z-index:2; position:relative;">
+                        <div class="infinity-sym" id="infinitySym">♾️</div>
+                        <div class="summary-title" id="summaryTitle">能量守恒与牛顿第二定律</div>
+                        <div class="summary-sub" id="summarySub">宇宙的答案，藏在你对世界的每一次提问中</div>
+                        <div class="credit" id="finalCredit">📚 感谢观看 · 探索永不止步</div>
+                    </div>
+                `
+            },
+
+            // ---------- 时间线事件 ----------
+            timeline: [
+                // --- 第一幕 (0-45s) ---
+                { time: 0.5, action: 'show', target: 'tagMass' },
+                { time: 0.5, action: 'show', target: 'tagWeight' },
+                { time: 0.8, action: 'show', target: 'subLine' },
+                { time: 0.5, action: 'cubeFlyIn', target: 'cube' },
+                { time: 3.0, action: 'show', target: 'cardA' },
+                { time: 6.0, action: 'show', target: 'cardB' },
+                { time: 6.0, action: 'updateText', target: 'weightB', value: '重力 1.6 N' },
+                { time: 10.0, action: 'show', target: 'conclusion' },
+
+                // --- 第二幕 (45-65s) ---
+                { time: 45.5, action: 'show', target: 'paper' },
+                { time: 50.0, action: 'show', target: 'answerReveal' },
+
+                // --- 第三幕 (65-80s) ---
+                { time: 66.0, action: 'show', target: 'infinitySym' },
+                { time: 68.0, action: 'show', target: 'summaryTitle' },
+                { time: 70.0, action: 'show', target: 'summarySub' },
+                { time: 73.0, action: 'show', target: 'finalCredit' }
+            ]
+        };
+
+        // =============================================================
+        //  2. ⚙️ 播放器引擎
+        // =============================================================
+
+        // ---- DOM 引用 ----
+        const player = document.getElementById('player');
+        const sceneContainer = document.getElementById('sceneContainer');
+        const starsContainer = document.getElementById('starsContainer');
+        const playBtn = document.getElementById('playBtn');
+        const rewindBtn = document.getElementById('rewindBtn');
+        const progressFill = document.getElementById('progressFill');
+        const timeLabel = document.getElementById('timeLabel');
+        const progressBar = document.getElementById('progressBar');
+        const speedBtn = document.getElementById('speedBtn');
+
+        // ---- 状态 ----
+        let currentTime = 0;
+        let isPlaying = false;
+        let speed = 1.0;
+        const speeds = [0.5, 1.0, 1.5, 2.0];
+        let speedIndex = 1;
+        let animId = null;
+        let lastTimestamp = 0;
+
+        // ---- 场景与事件数据 ----
+        const { totalDuration, scenes, sceneElements, timeline } = timelineData;
+
+        // ---- 状态标记（防止重复触发） ----
+        const flags = {};
+
+        // ---- 元素缓存 ----
+        const elementCache = {};
+
+        // =============================================================
+        //  3. 🎨 初始化：生成星星 & 场景
+        // =============================================================
+
+        // 生成星星
+        function initStars() {
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.setProperty('--d', (2 + Math.random() * 4) + 's');
+                star.style.width = (1 + Math.random() * 2.5) + 'px';
+                star.style.height = star.style.width;
+                starsContainer.appendChild(star);
+            }
+        }
+        initStars();
+
+        // 生成场景
+        function initScenes() {
+            scenes.forEach((sceneDef) => {
+                const sceneDiv = document.createElement('div');
+                sceneDiv.className = 'scene';
+                sceneDiv.id = sceneDef.id;
+                if (sceneDef.bg) {
+                    sceneDiv.style.background = sceneDef.bg;
+                }
+                // 注入HTML
+                const html = sceneElements[sceneDef.id] || '<div style="color:#fff;">场景内容未定义</div>';
+                sceneDiv.innerHTML = html;
+                sceneContainer.appendChild(sceneDiv);
+            });
+
+            // 默认激活第一个场景
+            if (scenes.length > 0) {
+                document.getElementById(scenes[0].id).classList.add('active');
+            }
+        }
+        initScenes();
+
+        // =============================================================
+        //  4. 🎯 场景调度器
+        // =============================================================
+
+        function getSceneIdByTime(time) {
+            for (const s of scenes) {
+                if (time >= s.start && time < s.end) {
+                    return s.id;
+                }
+            }
+            return scenes.length > 0 ? scenes[scenes.length - 1].id : null;
+        }
+
+        function switchScene(time) {
+            const targetId = getSceneIdByTime(time);
+            if (!targetId) return;
+
+            const allScenes = document.querySelectorAll('.scene');
+            allScenes.forEach((s) => {
+                s.classList.toggle('active', s.id === targetId);
+            });
+        }
+
+        // =============================================================
+        //  5. ⏱️ 事件调度器
+        // =============================================================
+
+        function dispatchEvent(event) {
+            const { action, target, value } = event;
+            const el = document.getElementById(target);
+            if (!el) return;
+
+            switch (action) {
+                case 'show':
+                    el.classList.add('show');
+                    break;
+                case 'hide':
+                    el.classList.remove('show');
+                    break;
+                case 'updateText':
+                    el.textContent = value;
+                    break;
+                case 'cubeFlyIn':
+                    // 特殊处理：立方体飞入 + 浮动
+                    el.style.animation = 'flyIn 2s cubic-bezier(0.23,1,0.32,1) forwards';
+                    setTimeout(() => {
+                        el.style.animation = 'flyIn 2s cubic-bezier(0.23,1,0.32,1) forwards, float 2.4s ease-in-out 2s infinite';
+                    }, 2000);
+                    break;
+                default:
+                    console.warn('未知动作:', action);
+            }
+        }
+
+        // =============================================================
+        //  6. 📍 时间线更新 (核心)
+        // =============================================================
+
+        function updateTimeline(time) {
+            const t = Math.min(time, totalDuration);
+
+            // 场景切换
+            switchScene(t);
+
+            // 触发时间线事件
+            for (const event of timeline) {
+                const key = `${event.time}_${event.action}_${event.target}`;
+                if (t >= event.time && !flags[key]) {
+                    flags[key] = true;
+                    dispatchEvent(event);
+                }
+            }
+
+            // 更新进度
+            const pct = (t / totalDuration) * 100;
+            progressFill.style.width = Math.min(pct, 100) + '%';
+            const mins = Math.floor(t / 60);
+            const secs = Math.floor(t % 60);
+            const totalMins = Math.floor(totalDuration / 60);
+            const totalSecs = Math.floor(totalDuration % 60);
+            timeLabel.textContent =
+                `${mins}:${secs.toString().padStart(2, '0')} / ${totalMins}:${totalSecs.toString().padStart(2, '0')}`;
+        }
+
+        // =============================================================
+        //  7. ▶️ 播放循环
+        // =============================================================
+
+        function playLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const delta = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            if (isPlaying) {
+                currentTime += delta * speed;
+                if (currentTime >= totalDuration) {
+                    currentTime = totalDuration;
+                    isPlaying = false;
+                    playBtn.textContent = '⟳';
+                    updateTimeline(currentTime);
+                    return;
+                }
+                updateTimeline(currentTime);
+                animId = requestAnimationFrame(playLoop);
+            } else {
+                animId = requestAnimationFrame(playLoop);
+            }
+        }
+
+        // ---- 启动循环 ----
+        function startLoop() {
+            if (animId) cancelAnimationFrame(animId);
+            lastTimestamp = 0;
+            animId = requestAnimationFrame(playLoop);
+        }
+
+        // ---- 重置所有标记 ----
+        function resetFlags() {
+            for (const key in flags) {
+                delete flags[key];
+            }
+        }
+
+        // ---- 重置UI状态（移除所有show类） ----
+        function resetUI() {
+            document.querySelectorAll('.show').forEach(el => {
+                // 只移除通过框架添加的show类，保留其他
+                if (el.id && timeline.some(e => e.target === el.id)) {
+                    el.classList.remove('show');
+                }
+            });
+            // 重置特殊元素
+            const cube = document.getElementById('cube');
+            if (cube) {
+                cube.style.animation = '';
+                cube.style.opacity = '0';
+            }
+            const paper = document.getElementById('paper');
+            if (paper) paper.classList.remove('show');
+            const answerReveal = document.getElementById('answerReveal');
+            if (answerReveal) answerReveal.style.opacity = '0';
+            const infinitySym = document.getElementById('infinitySym');
+            if (infinitySym) infinitySym.classList.remove('show');
+            const summaryTitle = document.getElementById('summaryTitle');
+            if (summaryTitle) summaryTitle.classList.remove('show');
+            const summarySub = document.getElementById('summarySub');
+            if (summarySub) summarySub.classList.remove('show');
+            const finalCredit = document.getElementById('finalCredit');
+            if (finalCredit) finalCredit.classList.remove('show');
+            // 重置卡片B文字
+            const weightB = document.getElementById('weightB');
+            if (weightB) weightB.textContent = '重力 9.8 N';
+        }
+
+        // ---- 重置到开头 ----
+        function resetToStart() {
+            currentTime = 0;
+            resetFlags();
+            resetUI();
+            switchScene(0);
+            updateTimeline(0);
+            playBtn.textContent = '▶';
+            isPlaying = false;
+        }
+
+        // =============================================================
+        //  8. 🎮 控制绑定
+        // =============================================================
+
+        // 播放/暂停
+        playBtn.addEventListener('click', function() {
+            if (currentTime >= totalDuration) {
+                // 从头播放
+                resetToStart();
+                isPlaying = true;
+                playBtn.textContent = '⏸';
+                startLoop();
+                return;
+            }
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏸' : '▶';
+            if (isPlaying) {
+                lastTimestamp = 0;
+                startLoop();
+            }
+        });
+
+        // 回退到开头
+        rewindBtn.addEventListener('click', function() {
+            resetToStart();
+            startLoop();
+        });
+
+        // 进度条点击跳转
+        progressBar.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const pct = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1));
+            currentTime = pct * totalDuration;
+            resetFlags();
+            // 不重置UI，让updateTimeline重新应用
+            // 但需要清除所有show类，让事件重新触发
+            document.querySelectorAll('.show').forEach(el => {
+                if (el.id && timeline.some(e => e.target === el.id)) {
+                    el.classList.remove('show');
+                }
+            });
+            // 重置特殊元素
+            const cube = document.getElementById('cube');
+            if (cube) {
+                cube.style.animation = '';
+                cube.style.opacity = '0';
+            }
+            const paper = document.getElementById('paper');
+            if (paper) paper.classList.remove('show');
+            const answerReveal = document.getElementById('answerReveal');
+            if (answerReveal) answerReveal.style.opacity = '0';
+            const infinitySym = document.getElementById('infinitySym');
+            if (infinitySym) infinitySym.classList.remove('show');
+            const summaryTitle = document.getElementById('summaryTitle');
+            if (summaryTitle) summaryTitle.classList.remove('show');
+            const summarySub = document.getElementById('summarySub');
+            if (summarySub) summarySub.classList.remove('show');
+            const finalCredit = document.getElementById('finalCredit');
+            if (finalCredit) finalCredit.classList.remove('show');
+            const weightB = document.getElementById('weightB');
+            if (weightB) weightB.textContent = '重力 9.8 N';
+
+            updateTimeline(currentTime);
+            if (!isPlaying) {
+                playBtn.textContent = '▶';
+            }
+        });
+
+        // 速度切换
+        speedBtn.addEventListener('click', function() {
+            speedIndex = (speedIndex + 1) % speeds.length;
+            speed = speeds[speedIndex];
+            this.textContent = speed + '×';
+        });
+
+        // =============================================================
+        //  9. 🚀 初始化
+        // =============================================================
+
+        resetToStart();
+        startLoop();
+
+        // 默认暂停
+        isPlaying = false;
+        playBtn.textContent = '▶';
+
+        console.log('🎬 播放器框架已加载');
+        console.log('📊 总时长:', totalDuration, '秒');
+        console.log('📋 事件数:', timeline.length);
+        console.log('🎭 场景数:', scenes.length);
+        console.log('💡 提示: 修改 timelineData 即可更换动画内容');
+
+    })();
+</script>
+
+</body>
+</html>

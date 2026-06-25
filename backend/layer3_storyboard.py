@@ -517,6 +517,140 @@ def _tmpl_final_elevation(params: dict, seg_start: int, seg_end: int) -> dict:
 
 
 # ==================================================================
+#  🔬 双模式：物理仿真 + 关键洞察 模板
+# ==================================================================
+
+def _tmpl_simulate_physics(params: dict, seg_start: int, seg_end: int) -> dict:
+    """物理仿真模板。
+
+    params 中包含 physics 字段，描述物理阶段（phases）、
+    可视化配置（visual_config）和帧数据信息。
+    """
+    physics = params.get("physics", {})
+    phases = physics.get("phases", [])
+    visual = physics.get("visual_config", {})
+    fps = physics.get("fps", 30)
+    duration = max(1, (seg_end - seg_start) // fps)
+
+    # 相位描述
+    phase_names = []
+    for p in phases:
+        ptype = p.get("type", "")
+        name_map = {
+            "slope": "斜面加速下滑",
+            "rough_surface": "粗糙水平面减速",
+            "horizontal_pull": "水平拉力加速",
+            "free_fall": "自由落体",
+            "vertical_throw": "竖直上抛",
+            "projectile": "平抛运动",
+            "constant_accel": "匀加速直线运动",
+        }
+        phase_names.append(name_map.get(ptype, ptype))
+    if not phase_names:
+        phase_summary = "物理过程"
+    else:
+        phase_summary = " → ".join(phase_names) if len(phase_names) > 1 else phase_names[0]
+
+    has_slope = any(p["type"] == "slope" for p in phases)
+    has_rough = any(p["type"] == "rough_surface" for p in phases)
+    has_pull = any(p["type"] == "horizontal_pull" for p in phases)
+
+    show_energy = visual.get("hud", {}).get("showEnergy", True)
+    show_velocity = visual.get("hud", {}).get("showVelocity", True)
+
+    # 分阶段描述条目
+    entries = []
+    third = (seg_end - seg_start) // 3
+    t1 = seg_start + third
+    t2 = seg_start + 2 * third
+
+    entries.append({
+        "time": _time_range(seg_start, t1),
+        "visual": f"仿真开始：物体在{phase_summary}。"
+                  f"深色实验室背景，画布底部绘制{'斜面+水平面' if has_slope else '水平面'}，"
+                  f"物体位于起点。",
+        "animation": "场景用深色背景淡入，物理场景从底部向上画出（2秒），"
+                     "物体在起点待命，轻微上下浮动",
+    })
+
+    if has_slope and has_rough:
+        entries.append({
+            "time": _time_range(t1, t2),
+            "visual": "物体沿斜面加速下滑 → 进入粗糙面开始减速。"
+                      f"速度与动能实时显示在HUD面板中。"
+                      f"{'能量条实时变化（Ep 减小 → Ek 增大 → 摩擦耗散）' if show_energy else ''}",
+            "animation": "物体受重力加速度影响加速滑下斜面（速度箭头变长变绿），"
+                         "进入粗糙面后速度箭头缩短变红（摩擦减速），"
+                         "HUD数字随帧更新，能量条动画过渡",
+        })
+        if has_pull:
+            entries.append({
+                "time": _time_range(t2, seg_end),
+                "visual": "物体在粗糙面上减速停止后，水平拉力F开始作用，"
+                          "物块被重新加速。",
+                "animation": f"拉力箭头从右侧出现（橙色），物块开始向右加速，"
+                             f"速度箭头重新变长，HUD实时更新",
+            })
+    elif has_slope and not has_rough:
+        entries.append({
+            "time": _time_range(t1, seg_end),
+            "visual": "物体沿斜面加速滑下，速度越来越快。",
+            "animation": "物体加速下滑，速度箭头不断变长"
+        })
+
+    # 关键帧描述
+    key_entries = []
+    for p in phases:
+        if p["type"] == "slope" and p.get("params", {}).get("length"):
+            length = p["params"]["length"]
+            angle = p.get("params", {}).get("angle_deg", 30)
+            key_entries.append(f"🌄 斜面底部（下滑 {length}m）— 速度最大")
+        if p["type"] == "rough_surface":
+            key_entries.append("🛑 粗糙面 — 摩擦减速，动能→热能")
+        if p["type"] == "horizontal_pull":
+            key_entries.append("🔵 拉力阶段 — 外力做功，动能再次增加")
+
+    if key_entries:
+        entries.append({
+            "time": _time_range(seg_end - (seg_end - seg_start) // 4, seg_end),
+            "visual": "关键节点：" + "；".join(key_entries[:3]),
+            "animation": "对应节点画面闪烁或标签弹出",
+        })
+
+    narration = (f"观察物理过程：{phase_summary}。"
+                 f"{'注意观察速度、加速度和能量的实时变化。' if show_velocity else ''}")
+
+    return {"entries": entries, "narration": narration}
+
+
+def _tmpl_simulate_insight(params: dict, seg_start: int, seg_end: int) -> dict:
+    """关键洞察模板：仿真结束后弹出的物理结论。"""
+    insights = params.get("insights", [])
+    formula = params.get("formula", "")
+    concept_name = params.get("concept_name", "")
+
+    entries = [
+        {
+            "time": _time_range(seg_start, seg_start + (seg_end - seg_start) // 2),
+            "visual": f"仿真结束，核心结论弹出：{' | '.join(insights[:2])}",
+            "animation": "结论文字以放大弹出效果出现（弹性动画，easeOutBack），"
+                         "每个结论间隔0.5秒，带有发光描边",
+        }
+    ]
+
+    if formula:
+        entries.append({
+            "time": _time_range(seg_start + (seg_end - seg_start) // 2, seg_end),
+            "visual": f"核心公式：{formula}",
+            "animation": "公式从中央放大显示，变量用不同颜色高亮",
+        })
+
+    narration = f"看完了整个过程。总结关键发现：{'，'.join(insights[:2])}。"
+
+    return {"entries": entries, "narration": narration}
+
+
+# ==================================================================
 #  场景类型到模板的映射
 # ==================================================================
 
@@ -534,6 +668,9 @@ SCENE_TEMPLATES = {
     "concept_review": _tmpl_concept_review,
     "knowledge_transfer": _tmpl_knowledge_transfer,
     "final_elevation": _tmpl_final_elevation,
+    # 🔬 双模式扩展
+    "simulate_physics": _tmpl_simulate_physics,
+    "simulate_insight": _tmpl_simulate_insight,
 }
 
 
@@ -610,6 +747,12 @@ class StoryboardExpander:
         start = seg.get("start_frame", 0)
         end = seg.get("end_frame", 0)
 
+        # 🔬 双模式：将 segment 级别的 physics 字段合并到 params
+        # （_tmpl_simulate_physics 等模板需要读取 physics.phases）
+        if seg.get("physics") and scene_type in ("simulate_physics",):
+            params = dict(params)
+            params["physics"] = seg["physics"]
+
         # 查找匹配的模板函数
         tmpl_func = SCENE_TEMPLATES.get(scene_type, _get_fallback_template(scene_type))
         result = tmpl_func(params, start, end)
@@ -622,6 +765,7 @@ class StoryboardExpander:
             "id": seg["id"],
             "name": seg["name"],
             "scene_type": scene_type,
+            "mode": seg.get("mode", "explain"),
             "duration_sec": seg["duration_sec"],
             "start_frame": start,
             "end_frame": end,
@@ -629,6 +773,8 @@ class StoryboardExpander:
             "color_scheme": color_scheme,
             "components": seg.get("components", []),
             "params": seg.get("params", {}),  # 保留结构化参数供 Layer 4 消费
+            # 🔬 双模式：保留 physics 字段供 Layer 4 调用仿真器
+            **({"physics": seg["physics"]} if seg.get("physics") else {}),
             "storyboard": result["entries"],
             "narration": result["narration"]
         }

@@ -39,6 +39,8 @@ from layer1_agent import (
 from layer2_engine import generate_act_plan
 from layer2_solution_steps import generate_solution_steps, solution_steps_to_text
 from layer3_storyboard import expand_storyboard, format_as_text
+from physics_simulator import simulate_slope_problem
+from physics_param_extractor import extract_physics_params, run_simulation_from_text
 from layer4_engine import orchestrate, generate_html_timeline
 
 # ─── 加载 .env ───
@@ -196,13 +198,7 @@ async def analyze_storyboard(req: AnalyzeRequest):
     if not text:
         raise HTTPException(status_code=400, detail="题目文本不能为空")
 
-    parsed = TextParser.parse(text)
-    if not parsed["stem"]:
-        raise HTTPException(
-            status_code=400,
-            detail="无法解析题目格式，请确保包含题干和 A/B/C/D 选项"
-        )
-
+    # 松弛验证：计算题可能没有 A/B/C/D 选项，非空即可
     detected = RuleEngine.detect_topics(text)
     detected_info = []
     for d in detected:
@@ -218,7 +214,18 @@ async def analyze_storyboard(req: AnalyzeRequest):
     llm_cfg = llm_config if use_llm else None
 
     try:
+        # 松弛验证：计算题可能没有 A/B/C/D 选项
+        parsed = TextParser.parse(text)
+
         layer1_result = await analyze_problem_safe(text, llm_cfg)
+
+        # 🔬 双模式扩展：提取物理参数并注入 Layer 1 结果
+        physics_extracted = extract_physics_params(text)
+        if physics_extracted["phases"]:
+            layer1_result["physics_params"] = physics_extracted["params"]
+            layer1_result["physics_phases"] = physics_extracted["phases"]
+        layer1_result["_raw_text"] = text  # 供 Layer 2 检测使用
+
         act_plan = generate_act_plan(layer1_result)
 
         # Layer 2.5: 解题步骤生成
@@ -234,12 +241,19 @@ async def analyze_storyboard(req: AnalyzeRequest):
             timeline_json_str = json.dumps(timeline, ensure_ascii=False, indent=2)
             with open(str(STATIC_DIR / "timeline.json"), "w", encoding="utf-8") as f:
                 f.write(timeline_json_str)
-            generate_html_timeline(timeline, str(STATIC_DIR / "index.html"))
+            generate_html_timeline(timeline, str(STATIC_DIR / "timeline-player.html"))
             layer4_url = "/"
         except Exception as e4:
             print(f"[Layer 4] 生成失败: {e4}")
             timeline = None
             layer4_url = None
+
+        # 检测是否生成了仿真模式
+        has_sim = timeline and any(
+            seg.get("mode") == "simulate"
+            for seg in timeline.get("timeline", [])
+        )
+        timeline_mode = "hybrid" if has_sim else "explain_only"
 
         return AnalyzeResponse(
             success=True,
@@ -251,6 +265,8 @@ async def analyze_storyboard(req: AnalyzeRequest):
                 "layer3": storyboard,
                 "layer3_text": storyboard_text,
                 "layer4_url": layer4_url,
+                "physics": physics_extracted if physics_extracted["phases"] else None,
+                "timeline_mode": timeline_mode,
             },
             meta={
                 "mode": "llm_enhanced" if use_llm else "rule_only",
@@ -263,6 +279,86 @@ async def analyze_storyboard(req: AnalyzeRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/physics/simulate")
+async def physics_simulate():
+    """物理仿真：斜面+粗糙面+拉力 经典题型。"""
+    try:
+        result = simulate_slope_problem(
+            mass=2, angle_deg=37, length=3, mu=0.4,
+            g=10, pull_force=10, pull_after=1.0, fps=30
+        )
+        return {
+            "success": True,
+            "frames": result["frames"],
+            "total_frames": result["total_frames"],
+            "fps": result["fps"],
+            "summary": result["summary"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/physics/demo-timeline")
+async def physics_demo_timeline():
+    """返回物理仿真 timeline，直接在浏览器中播放。"""
+    try:
+        from physics_simulator import format_frames_to_timeline
+        result = simulate_slope_problem(
+            mass=2, angle_deg=37, length=3, mu=0.4,
+            g=10, pull_force=10, pull_after=1.0, fps=30
+        )
+        timeline = format_frames_to_timeline(result["frames"], fps=result["fps"])
+        return timeline
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class AnalyzeRequestWithModel(AnalyzeRequest):
+    """带 model 字段的请求（兼容 analyzer 调用）。"""
+    model: str | None = None
+
+
+@app.post("/api/physics/simulate-from-text")
+async def physics_simulate_from_text(req: AnalyzeRequestWithModel):
+    """从题目文本提取物理参数并运行仿真。"""
+    text = req.text.strip() if req.text else ""
+    if not text:
+        raise HTTPException(status_code=400, detail="题目文本不能为空")
+
+    try:
+        # 提取参数
+        extracted = extract_physics_params(text)
+        if not extracted["phases"]:
+            return {
+                "success": True,
+                "simulatable": False,
+                "extracted": extracted,
+                "message": "未能自动匹配到物理仿真模板"
+            }
+
+        # 运行仿真
+        result = run_simulation_from_text(text)
+        if result is None:
+            return {
+                "success": True,
+                "simulatable": False,
+                "extracted": extracted,
+                "message": "仿真运行失败"
+            }
+
+        return {
+            "success": True,
+            "simulatable": True,
+            "extracted": extracted,
+            "frames": result["frames"],
+            "total_frames": result["total_frames"],
+            "fps": result["fps"],
+            "summary": result["summary"],
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
