@@ -3,488 +3,356 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>电场中的带电单摆 · 样片</title>
+<title>电场中带电单摆 · 完整演示</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0a0e17;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-    overflow: hidden;
-  }
-  #app { position: relative; }
-  canvas { display: block; background: #0a0e17; border-radius: 12px; box-shadow: 0 0 60px rgba(0,0,0,0.5); }
-  #controls {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 20px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    opacity: 0; transition: opacity 0.3s;
-  }
-  #app:hover #controls { opacity: 1; }
-  #controls button {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #fff; width: 34px; height: 34px;
-    border-radius: 50%; cursor: pointer; font-size: 14px;
-  }
-  #controls input[type="range"] { flex: 1; height: 4px; }
-  #time-display { color: rgba(255,255,255,0.5); font-size: 12px; min-width: 80px; text-align: right; }
-  #caption {
-    position: absolute;
-    bottom: 70px; left: 50%; transform: translateX(-50%);
-    color: #fff;
-    font-size: 15px;
-    text-align: center;
-    pointer-events: none;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
-    opacity: 0;
-    transition: opacity 0.8s;
-    max-width: 80%;
-    line-height: 1.6;
-  }
-  #caption.show { opacity: 1; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0e17; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:"Microsoft YaHei","PingFang SC",sans-serif; }
+canvas { display:block; border-radius:12px; }
+#controls { position:absolute; bottom:0; left:0; right:0; display:flex; align-items:center; gap:12px; padding:10px 20px; background:linear-gradient(transparent,rgba(0,0,0,0.8)); opacity:0; transition:opacity .3s; }
+#app:hover #controls { opacity:1; }
+#controls button { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; width:34px; height:34px; border-radius:50%; cursor:pointer; font-size:14px; }
+#controls input[type=range] { flex:1; }
+#time-display { color:rgba(255,255,255,0.5); font-size:12px; min-width:80px; text-align:right; }
 </style>
 </head>
 <body>
 <div id="app">
-  <canvas id="c" width="960" height="640"></canvas>
-  <div id="caption"></div>
-  <div id="controls">
-    <button id="playBtn">⏸</button>
-    <input type="range" id="seekBar" min="0" max="100" value="0">
-    <span id="time-display">00:00 / 01:20</span>
-  </div>
+<canvas id="c" width="960" height="640"></canvas>
+<div id="controls">
+<button id="playBtn">▶</button>
+<input type="range" id="seekBar" min="0" max="100" value="0">
+<span id="time-display">00:00 / 02:30</span>
 </div>
-
+</div>
 <script>
-var canvas = document.getElementById('c');
-var ctx = canvas.getContext('2d');
-var W = 960, H = 640;
-var CX = 480, CY = 130;
-var L = 130;
-var BOB_R = 18;
-var mass = 0.1, q = 5e-4, E_val = 2000, g = 10, len_val = 1.0;
-var Fq = q * E_val;
-var Fg = mass * g;
-var Fr = Math.sqrt(Fq*Fq + Fg*Fg);
-var eqAngle = Math.atan2(Fq, Fg);
-var TOTAL_FRAMES = 4800;
-var FPS = 60;
-var frame = 0;
-var playing = true;
+var c=document.getElementById('c'),ctx=c.getContext('2d');
+var W=960,H=640,CX=480,CY=130,LP=130,BR=18;
+var FPS=60,TOTAL=9000,frame=0,playing=false;
+var mass=0.1,q=5e-4,E=2000,g=10,L=1.0,Fq=1.0,Fg=1.0,Fr=Math.SQRT2;
 
-function lerp(a, b, t) { return a + (b-a)*t; }
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function easeOut(t) { return 1 - Math.pow(1-t, 3); }
-function easeOutBack(t) { var c=1.70158; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
-
-var captionEl = document.getElementById('caption');
-
-var SCENES = {
-  INTRO:       [0,    720],
-  FORCES:      [720,  1440],
-  SWING:       [1440, 3120],
-  ENERGY:      [3120, 4080],
-  SOLUTION:    [4080, 4650],
-  ENDING:      [4650, 4800],
-};
-
-var captions = {
-  INTRO: '在竖直平面内，存在水平向右的匀强电场… 一个带正电的小球悬挂于 O 点',
-  FORCES: '小球受到三个力：电场力 F电、重力 G、以及它们的合力 F合',
-  SWING: '由静止释放后，小球在电场力和重力共同作用下开始摆动',
-  ENERGY: '能量在电势能、动能和重力势能之间相互转化，总能量保持不变',
-  SOLUTION: '由动能定理：W电 + W重 = ½mv²，代入数据得 v = 4 m/s',
-  ENDING: '电场中的摆 — 力与能量的完美结合',
-};
-
-function getScene(f) {
-  if (f < SCENES.INTRO[1]) return 'INTRO';
-  if (f < SCENES.FORCES[1]) return 'FORCES';
-  if (f < SCENES.SWING[1]) return 'SWING';
-  if (f < SCENES.ENERGY[1]) return 'ENERGY';
-  if (f < SCENES.SOLUTION[1]) return 'SOLUTION';
-  return 'ENDING';
+function clamp(v,l,h){return Math.max(l,Math.min(h,v));}
+function rc(x,y,w,h,r){
+  if(r>w/2)r=w/2;if(r>h/2)r=h/2;
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+function da(x1,y1,x2,y2,cl){
+  var a=Math.atan2(y2-y1,x2-x1);
+  ctx.strokeStyle=cl;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.fillStyle=cl;ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-10*Math.cos(a-0.5),y2-10*Math.sin(a-0.5));
+  ctx.lineTo(x2-10*Math.cos(a+0.5),y2-10*Math.sin(a+0.5));
+  ctx.closePath();ctx.fill();
 }
 
-function getPendulumState(frame, scene) {
-  if (scene === 'INTRO') return { theta: 0, v: 0, Ek: 0, Ep_g: 0, Ep_e: 0, Etot: 0 };
-  if (scene === 'FORCES') return { theta: 0, v: 0, Ek: 0, Ep_g: 0, Ep_e: 0, Etot: 0 };
-  if (scene === 'SWING' || scene === 'ENERGY') {
-    var localFrame = frame - SCENES.SWING[0];
-    var t = localFrame / FPS;
-    var thetaMax = eqAngle * 0.95;
-    var damping = 0.997;
-    var omega0 = 2 * Math.PI / 3.5;
-    var amp = thetaMax * Math.pow(damping, t * 2);
-    var phase = omega0 * t;
-    var theta = amp * (1 - Math.cos(phase * 0.5));
-    var v_inst = len_val * amp * omega0 * 0.5 * Math.sin(phase * 0.5);
-    var bobX = len_val * Math.sin(theta);
-    var bobY = len_val * (1 - Math.cos(theta));
-    var Ek = 0.5 * mass * v_inst * v_inst;
-    var Ep_g = mass * g * bobY;
-    var Ep_e = -Fq * bobX;
-    var Etot = Ek + Ep_g + Ep_e;
-    return { theta: theta, v: v_inst, Ek: Ek, Ep_g: Ep_g, Ep_e: Ep_e, Etot: Etot };
-  }
-  return { theta: eqAngle * 0.5, v: 0, Ek: 0, Ep_g: 0.15, Ep_e: -0.15, Etot: 0.3 };
+// 场景边界（2分30秒=9000帧@60fps）
+// FORCES:0-12% SOL_Q1:12-22% TRANS1:22-24% SWING:24-38% SOL_Q2:38-52% TRANS2:52-54% Q3:54-68% SOL_Q3:68-85% ENDING:85-100%
+var I1=Math.floor(TOTAL*0.12),I2=Math.floor(TOTAL*0.22),I2a=Math.floor(TOTAL*0.24),
+    I3=Math.floor(TOTAL*0.38),I4=Math.floor(TOTAL*0.52),I4a=Math.floor(TOTAL*0.54),
+    I5=Math.floor(TOTAL*0.68),I6=Math.floor(TOTAL*0.85);
+function getScene(f){
+  if(f<I1)return 'FORCES';  if(f<I2)return 'SOL_Q1';  if(f<I2a)return 'TRANS1';
+  if(f<I3)return 'SWING';  if(f<I4)return 'SOL_Q2';  if(f<I4a)return 'TRANS2';
+  if(f<I5)return 'Q3';  if(f<I6)return 'SOL_Q3';  return 'ENDING';
 }
 
-function roundRect(c, x, y, w, h, r) {
-  if (r > w/2) r = w/2; if (r > h/2) r = h/2;
-  c.beginPath(); c.moveTo(x+r, y); c.lineTo(x+w-r, y);
-  c.arcTo(x+w, y, x+w, y+r, r); c.lineTo(x+w, y+h-r);
-  c.arcTo(x+w, y+h, x+w-r, y+h, r); c.lineTo(x+r, y+h);
-  c.arcTo(x, y+h, x, y+h-r, r); c.lineTo(x, y+r);
-  c.arcTo(x, y, x+r, y, r); c.closePath();
+// 摆动数据：θ从0到37°，v从能量守恒计算
+var frames=[];
+for(var i=0;i<60;i++){
+  var t=i/60;
+  var th=0.646*Math.sin(t*Math.PI/2); // 0->37deg
+  var w=Fq*Math.sin(th)-Fg*(1-Math.cos(th));
+  if(w<0)w=0;
+  var vi=Math.sqrt(2*Math.abs(w)/mass);
+  var ek=0.5*mass*vi*vi,epg=mass*g*(1-Math.cos(th)),epe=-Fq*Math.sin(th);
+  frames.push({theta:th,v:vi,Ek:ek,Ep_g:epg,Ep_e:epe,E_total:ek+epg+epe});
 }
 
-function drawArrow(c, x1, y1, x2, y2, color, lw) {
-  var dx = x2-x1, dy = y2-y1, a = Math.atan2(dy, dx);
-  c.strokeStyle = color; c.lineWidth = lw || 2.5;
-  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
-  c.fillStyle = color;
-  c.beginPath(); c.moveTo(x2, y2);
-  c.lineTo(x2 - 10*Math.cos(a-0.5), y2 - 10*Math.sin(a-0.5));
-  c.lineTo(x2 - 10*Math.cos(a+0.5), y2 - 10*Math.sin(a+0.5));
-  c.closePath(); c.fill();
+// 获取当前帧的物理状态（只在SWING期间推进）
+function getPh(f){
+  if(f>=I2a&&f<I3){
+    var prog=(f-I2a)/(I3-I2a);
+    if(prog<0)prog=0;if(prog>1)prog=1;
+    var fi=Math.min(Math.floor(prog*frames.length),frames.length-1);
+  }else{var fi=0;}
+  var d=frames[fi]||{};
+  return{v:d.v||0,theta:d.theta||0,Ek:d.Ek||0,Ep_g:d.Ep_g||0,Ep_e:d.Ep_e||0,Etot:d.E_total||0};
 }
 
-function drawBackground(scene, frame) {
-  var grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W);
-  grad.addColorStop(0, '#0f172a'); grad.addColorStop(0.6, '#0a0e17'); grad.addColorStop(1, '#060a0f');
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  if (scene === 'INTRO' || scene === 'ENDING') {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    for (var i = 0; i < 60; i++) {
-      var sx = (i * 137.5) % W, sy = (i * 97.3) % (H * 0.4);
-      var tw = Math.sin(frame * 0.02 + i) * 0.5 + 0.5;
-      ctx.globalAlpha = tw * 0.3;
-      ctx.beginPath(); ctx.arc(sx, sy, 0.3 + (i%3)*0.3, 0, Math.PI*2); ctx.fill();
+function render(){
+  ctx.clearRect(0,0,W,H);
+  var scene=getScene(frame),ph=getPh(frame);
+  var theta=(scene==='SWING')?(ph.theta||0):0;
+  var bx=CX+LP*Math.sin(theta),by=CY+LP*Math.cos(theta);
+
+  // 背景
+  var bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W);
+  bg.addColorStop(0,'#0f172a');bg.addColorStop(0.6,'#0a0e17');bg.addColorStop(1,'#060a0f');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // 电场箭头
+  if(scene!=='ENDING'){
+    var fo=(frame*1.5)%30;
+    for(var y=40;y<by+30&&y<H-40;y+=50){
+      ctx.strokeStyle='rgba(59,130,246,0.09)';ctx.lineWidth=1.2;
+      ctx.setLineDash([6,10]);ctx.lineDashOffset=-frame*1.2;
+      ctx.beginPath();ctx.moveTo(60,y);ctx.lineTo(W-60,y);ctx.stroke();
+      ctx.setLineDash([]);ctx.lineDashOffset=0;
+      for(var x=100;x<W-80;x+=70){
+        var fx=x+((fo<15)?fo*1.5:(fo-30)*1.5);
+        if(fx<60||fx>W-60)continue;
+        ctx.fillStyle='rgba(59,130,246,0.1)';
+        ctx.beginPath();ctx.moveTo(fx+10,y);ctx.lineTo(fx+2,y-4);ctx.lineTo(fx+2,y+4);ctx.closePath();ctx.fill();
+      }
     }
-    ctx.globalAlpha = 1;
+    ctx.fillStyle='rgba(59,130,246,0.18)';ctx.font='bold 12px sans-serif';ctx.textAlign='right';ctx.textBaseline='top';
+    ctx.fillText('E ->',W-60,42);
   }
-}
-
-function drawFieldArrows(scene, frame) {
-  if (scene === 'ENDING') return;
-  ctx.save();
-  var fo = (frame * 1.5) % 30;
-  var scene2 = getScene(frame);
-  var state = getPendulumState(frame, scene2);
-  var bY = CY + L * Math.cos(state.theta || 0);
-  for (var y = 40; y < bY + 30 && y < H - 40; y += 50) {
-    ctx.strokeStyle = 'rgba(59,130,246,0.12)'; ctx.lineWidth = 1.2;
-    ctx.setLineDash([6, 10]); ctx.lineDashOffset = -frame * 1.2;
-    ctx.beginPath(); ctx.moveTo(60, y); ctx.lineTo(W - 60, y); ctx.stroke();
-    ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    for (var x = 100; x < W - 80; x += 70) {
-      var fx = x + ((fo < 15) ? fo * 1.5 : (fo - 30) * 1.5);
-      if (fx < 60 || fx > W - 60) continue;
-      ctx.fillStyle = 'rgba(59,130,246,0.15)';
-      ctx.beginPath(); ctx.moveTo(fx + 10, y); ctx.lineTo(fx + 2, y-4); ctx.lineTo(fx + 2, y+4); ctx.closePath(); ctx.fill();
-    }
-  }
-  ctx.fillStyle = 'rgba(59,130,246,0.25)';
-  ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-  ctx.fillText('E →', W - 60, 42);
-  ctx.restore();
-}
-
-function drawForceArrows(bX, bY, scene, frame, theta) {
-  ctx.save();
-  var arrowLenBase = 55, fqLen = (Fq / Fg) * arrowLenBase, fgLen = arrowLenBase, frLen = (Fr / Fg) * arrowLenBase;
-  function arrow(fromX, fromY, toX, toY, color, lColor, label) {
-    var dx = toX - fromX, dy = toY - fromY, a = Math.atan2(dy, dx);
-    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
-    ctx.shadowColor = color; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(toX, toY); ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.moveTo(toX, toY);
-    ctx.lineTo(toX - 10*Math.cos(a-0.5), toY - 10*Math.sin(a-0.5));
-    ctx.lineTo(toX - 10*Math.cos(a+0.5), toY - 10*Math.sin(a+0.5));
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = lColor || color; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText(label, (fromX+toX)/2, (fromY+toY)/2 - 4);
-  }
-  arrow(bX, bY, bX, bY+fgLen, 'rgba(59,130,246,0.85)', '#60a5fa', 'G');
-  arrow(bX, bY, bX+fqLen, bY, 'rgba(239,68,68,0.85)', '#ef4444', 'F电');
-  var rLen = Math.sqrt(fqLen*fqLen + fgLen*fgLen);
-  arrow(bX, bY, bX+(fqLen/rLen)*frLen, bY+(fgLen/rLen)*frLen, 'rgba(249,115,22,0.85)', '#fb923c', 'F合');
-  if (scene === 'FORCES') {
-    var frX = bX+(fqLen/rLen)*frLen, frY = bY+(fgLen/rLen)*frLen;
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
-    ctx.beginPath(); ctx.moveTo(bX, bY+fgLen); ctx.lineTo(frX, bY+fgLen); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bX+fqLen, bY); ctx.lineTo(bX+fqLen, frY); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('平行四边形法则', frX + 20, frY + 4);
-  }
-  ctx.fillStyle = 'rgba(10,15,25,0.75)';
-  roundRect(ctx, bX+BOB_R+8, bY-52, 120, 50, 6); ctx.fill();
-  ctx.font = '11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ef4444'; ctx.fillText('F电 = ' + Fq.toFixed(1) + ' N', bX+BOB_R+16, bY-38);
-  ctx.fillStyle = '#60a5fa'; ctx.fillText('G   = ' + Fg.toFixed(1) + ' N', bX+BOB_R+16, bY-22);
-  ctx.fillStyle = '#fb923c'; ctx.fillText('F合 = ' + Fr.toFixed(2) + ' N', bX+BOB_R+16, bY-6);
-  ctx.restore();
-}
-
-function drawDataPanel(state, scene, frame) {
-  ctx.save();
-  var px = 20, py = 20, pw = 190, ph = 148;
-  ctx.fillStyle = 'rgba(10,15,25,0.8)';
-  roundRect(ctx, px, py, pw, ph, 8); ctx.fill();
-  ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText('■ 实时物理量', px + 14, py + 8);
-  var items = [
-    {l:'角度 θ', v:(Math.abs(state.theta)*180/Math.PI).toFixed(1)+'°', c:'#fbbf24'},
-    {l:'速度 v', v:state.v.toFixed(2)+' m/s', c:'#60a5fa'},
-    {l:'动能 Ek', v:state.Ek.toFixed(3)+' J', c:'#34d399'},
-    {l:'重力势能', v:state.Ep_g.toFixed(3)+' J', c:'#f97316'},
-    {l:'电势能', v:state.Ep_e.toFixed(3)+' J', c:'#3b82f6'},
-    {l:'总能量', v:state.Etot.toFixed(3)+' J', c:'#a78bfa'},
-  ];
-  for (var i = 0; i < items.length; i++) {
-    var yy = py + 30 + i * 19;
-    ctx.fillStyle = '#64748b'; ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(items[i].l, px + 14, yy);
-    ctx.fillStyle = items[i].c; ctx.textAlign = 'right';
-    ctx.fillText(items[i].v, px + pw - 12, yy);
-  }
-  ctx.restore();
-}
-
-function drawEnergyBars(state, frame) {
-  ctx.save();
-  var bx = 30, by = H - 60, bw = W - 60, bh = 14;
-  ctx.fillStyle = 'rgba(50,60,80,0.3)';
-  roundRect(ctx, bx, by, bw, bh, 7); ctx.fill();
-  var Ek = Math.max(0.01, state.Ek), Ep_g = Math.max(0.01, state.Ep_g), Ep_e = Math.max(0.01, Math.abs(state.Ep_e));
-  var total = Ek + Ep_g + Ep_e;
-  if (total > 0) {
-    var eW = (Ep_e/total)*bw, kW = (Ek/total)*bw, gW = (Ep_g/total)*bw;
-    ctx.fillStyle = '#3b82f6'; roundRect(ctx, bx, by, eW, bh, 7); ctx.fill();
-    ctx.fillStyle = '#34d399'; ctx.fillRect(bx+eW, by, kW, bh);
-    ctx.fillStyle = '#f97316'; roundRect(ctx, bx+eW+kW, by, gW, bh, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-    ctx.fillText('⚡电势', bx+6, by-4); ctx.textAlign = 'center'; ctx.fillText('动能', bx+eW+kW/2, by-4);
-    ctx.textAlign = 'right'; ctx.fillText('重力势', bx+bw-6, by-4);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText('E总 = ' + state.Etot.toFixed(3) + ' J（能量守恒）', bx+bw/2, by+bh+6);
-  }
-  ctx.restore();
-}
-
-function drawSolution(frame) {
-  ctx.save();
-  var localF = frame - SCENES.SOLUTION[0];
-
-  // 半透明背景
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(0, 0, W, H);
-
-  var px = 80, py = 100, pw = W - 160;
-  ctx.fillStyle = 'rgba(10,15,25,0.88)';
-  roundRect(ctx, px, py, pw, 440, 12); ctx.fill();
-
-  ctx.fillStyle = '#e2e8f0';
-  ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText('解题过程', px + pw/2, py + 18);
-
-  var steps = [
-    '已知：m = 0.1kg, q = 5×10⁻⁴C, E = 2×10³N/C, L = 1.0m, g = 10m/s²',
-    '电场力：F电 = qE = 1.0 N',
-    '重力：G = mg = 1.0 N',
-    '动能定理：W电 + W重 = ½mv²',
-    '代入 θ = 37°：v² = 2×(0.6+0.2)/0.1 = 16',
-  ];
-
-  var vs = Math.min(Math.floor(localF / 20) + 1, steps.length);
-  for (var i = 0; i < vs; i++) {
-    var sy = py + 56 + i * 38;
-    var op = clamp((localF - i * 20) / 15, 0, 1);
-    ctx.globalAlpha = op;
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(String(i + 1) + '.', px + 30, sy);
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '15px sans-serif';
-    ctx.fillText(steps[i], px + 56, sy);
-  }
-
-  var ans = clamp((localF - steps.length * 20) / 20, 0, 1);
-  if (ans > 0) {
-    ctx.globalAlpha = ans;
-    ctx.fillStyle = '#052e16';
-    roundRect(ctx, px + 40, py + 310, pw - 80, 60, 10); ctx.fill();
-    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2;
-    roundRect(ctx, px + 40, py + 310, pw - 80, 60, 10); ctx.stroke();
-    ctx.fillStyle = '#22c55e';
-    ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('答案：v = 4 m/s（当 θ = 37° 时）', px + pw/2, py + 340);
-  }
-  ctx.restore();
-}
-
-function drawTitle(frame) {
-  ctx.save();
-  var progress = clamp(frame / 120, 0, 1);
-  var alpha = progress < 0.8 ? progress / 0.8 : (1 - (progress - 0.8) / 0.2);
-  ctx.globalAlpha = Math.max(0, alpha);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 30px sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('电场中的带电单摆', CX, lerp(300, 240, easeOut(Math.min(progress * 2, 1))));
-  if (progress > 0.4) {
-    ctx.globalAlpha = (progress - 0.4) / 0.3;
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '16px sans-serif';
-    ctx.fillText('力与运动的可视化分析', CX, 284);
-  }
-  ctx.restore();
-}
-
-function render() {
-  ctx.clearRect(0, 0, W, H);
-  var scene = getScene(frame);
-  var state = getPendulumState(frame, scene);
-  var theta = state.theta || 0;
-  var bX = CX + L * Math.sin(theta);
-  var bY = CY + L * Math.cos(theta);
-
-  drawBackground(scene, frame);
-  drawFieldArrows(scene, frame);
 
   // 圆弧轨迹
-  ctx.save(); ctx.globalAlpha = 0.12;
-  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
-  ctx.beginPath(); ctx.arc(CX, CY, L, 0.15, Math.PI - 0.15, false); ctx.stroke();
-  ctx.setLineDash([]); ctx.restore();
+  ctx.save();ctx.globalAlpha=0.08;
+  ctx.strokeStyle='#94a3b8';ctx.lineWidth=1;ctx.setLineDash([4,6]);
+  ctx.beginPath();ctx.arc(CX,CY,LP,0.15,Math.PI-0.15,false);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
 
   // 天花板+悬点
-  var grad = ctx.createLinearGradient(CX-120, CY, CX+120, CY);
-  grad.addColorStop(0, 'rgba(71,85,105,0)'); grad.addColorStop(0.3, 'rgba(71,85,105,0.6)');
-  grad.addColorStop(0.7, 'rgba(71,85,105,0.6)'); grad.addColorStop(1, 'rgba(71,85,105,0)');
-  ctx.strokeStyle = grad; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(CX-100, CY); ctx.lineTo(CX+100, CY); ctx.stroke();
-  ctx.strokeStyle = 'rgba(71,85,105,0.3)'; ctx.lineWidth = 1;
-  for (var i = -90; i <= 90; i += 15) {
-    ctx.beginPath(); ctx.moveTo(CX+i, CY); ctx.lineTo(CX+i-5, CY+6); ctx.stroke();
-  }
-  ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(CX, CY, 5, 0, Math.PI*2); ctx.fill();
+  var gd=ctx.createLinearGradient(CX-120,CY,CX+120,CY);
+  gd.addColorStop(0,'rgba(71,85,105,0)');gd.addColorStop(0.3,'rgba(71,85,105,0.5)');
+  gd.addColorStop(0.7,'rgba(71,85,105,0.5)');gd.addColorStop(1,'rgba(71,85,105,0)');
+  ctx.strokeStyle=gd;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(CX-100,CY);ctx.lineTo(CX+100,CY);ctx.stroke();
+  ctx.strokeStyle='rgba(71,85,105,0.2)';ctx.lineWidth=1;
+  for(var ti=-90;ti<=90;ti+=15){ctx.beginPath();ctx.moveTo(CX+ti,CY);ctx.lineTo(CX+ti-5,CY+6);ctx.stroke();}
+  ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(CX,CY,5,0,Math.PI*2);ctx.fill();
 
   // 摆线
-  ctx.strokeStyle = 'rgba(148,163,184,0.6)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(bX, bY); ctx.stroke();
+  ctx.strokeStyle='rgba(148,163,184,0.5)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(bx,by);ctx.stroke();
 
-  // 角度
-  if (Math.abs(theta) > 0.02 && (scene === 'SWING' || scene === 'ENERGY')) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(CX, CY, 45, -0.05, theta > 0 ? theta : -theta); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('θ=' + (Math.abs(theta)*180/Math.PI).toFixed(1) + '°', CX+45*0.6*(theta>0?1:-1), CY+45*0.6+6);
-  }
-
-  // 摆球
-  var glow = ctx.createRadialGradient(bX, bY, 2, bX, bY, BOB_R*2);
-  glow.addColorStop(0, 'rgba(251,191,36,0.2)'); glow.addColorStop(1, 'rgba(251,191,36,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(bX, bY, BOB_R*2, 0, Math.PI*2); ctx.fill();
-  var ballGrad = ctx.createRadialGradient(bX-BOB_R*0.3, bY-BOB_R*0.3, 2, bX, bY, BOB_R);
-  ballGrad.addColorStop(0, '#fcd34d'); ballGrad.addColorStop(0.6, '#fbbf24'); ballGrad.addColorStop(1, '#d97706');
-  ctx.shadowColor = 'rgba(251,191,36,0.3)'; ctx.shadowBlur = 20;
-  ctx.fillStyle = ballGrad;
-  ctx.beginPath(); ctx.arc(bX, bY, BOB_R, 0, Math.PI*2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(bX, bY, BOB_R, 0, Math.PI*2); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.beginPath(); ctx.arc(bX-BOB_R*0.25, bY-BOB_R*0.25, BOB_R*0.3, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('+', bX, bY);
-
-  if (scene === 'FORCES' || scene === 'SWING' || scene === 'ENERGY') drawForceArrows(bX, bY, scene, frame, theta);
-
-  if ((scene === 'SWING' || scene === 'ENERGY') && state.v > 0.05) {
-    var vAngle = theta + Math.PI/2;
-    var vx = bX + state.v*6*Math.cos(vAngle), vy = bY + state.v*6*Math.sin(vAngle);
-    drawArrow(ctx, bX, bY, vx, vy, 'rgba(96,165,250,0.8)');
-    ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('v', vx+8, vy-4);
-    ctx.fillStyle = 'rgba(96,165,250,0.5)'; ctx.font = '10px sans-serif';
-    ctx.fillText(state.v.toFixed(2) + 'm/s', vx+22, vy-4);
-  }
-
-  if (scene === 'SWING' || scene === 'ENERGY') drawDataPanel(state, scene, frame);
-  if (scene === 'ENERGY') drawEnergyBars(state, frame);
-  if (scene === 'SOLUTION') drawSolution(frame);
-  if (scene === 'INTRO') drawTitle(frame);
-
-  // 字幕
-  var ct = '';
-  if (scene === 'INTRO' && frame > 20 && frame < 400) ct = captions.INTRO;
-  else if (scene === 'FORCES' && frame > SCENES.FORCES[0]+70 && frame < SCENES.FORCES[0]+280) ct = captions.FORCES;
-  else if (scene === 'SWING' && frame > SCENES.SWING[0]+30 && frame < SCENES.SWING[0]+200) ct = captions.SWING;
-  else if (scene === 'ENERGY' && frame > SCENES.ENERGY[0]+30 && frame < SCENES.ENERGY[0]+200) ct = captions.ENERGY;
-  else if (scene === 'SOLUTION') ct = captions.SOLUTION;
-  else if (scene === 'ENDING') ct = captions.ENDING;
-  if (ct) {
+  // 37° 高亮标记
+  if(scene==='SWING'&&Math.abs(theta*180/Math.PI-37)<2){
     ctx.save();
-    ctx.globalAlpha = (scene === 'SOLUTION' || scene === 'ENDING') ? 1 : 0.9;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    roundRect(ctx, W/2-300, H-50, 600, 36, 8); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(ct, W/2, H-32);
+    ctx.shadowColor='rgba(34,197,94,0.5)';ctx.shadowBlur=30;
+    ctx.strokeStyle='rgba(34,197,94,0.4)';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.arc(CX,CY,LP,Math.PI/2,Math.PI/2-theta,true);ctx.stroke();
+    ctx.setLineDash([]);ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(34,197,94,0.15)';
+    ctx.beginPath();ctx.arc(CX,CY,LP,Math.PI/2,Math.PI/2-theta,true);ctx.fill();
+    ctx.fillStyle='#22c55e';ctx.font='bold 16px sans-serif';ctx.textAlign='center';
+    ctx.fillText('θ = 37°',CX+LP*0.7*Math.cos(Math.PI/2-theta/2),CY+LP*0.7*Math.sin(Math.PI/2-theta/2));
     ctx.restore();
   }
 
-  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.font = '12px sans-serif';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('education_web · 物理动画引擎', W-16, H-12);
+  // 角度弧
+  if(Math.abs(theta)>0.02&&(scene==='SWING'||scene==='Q3')){
+    var startA=Math.PI/2,endA=Math.PI/2-theta;
+    ctx.beginPath();ctx.arc(CX,CY,45,startA,endA,true);ctx.stroke();
+    var midA=Math.PI/2-theta/2;
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+    ctx.fillText('θ='+(Math.abs(theta)*180/Math.PI).toFixed(1)+'°',CX+50*Math.cos(midA),CY+50*Math.sin(midA)+6);
+  }
+
+  // 摆球
+  var gl=ctx.createRadialGradient(bx,by,2,bx,by,BR*2);
+  gl.addColorStop(0,'rgba(251,191,36,0.15)');gl.addColorStop(1,'rgba(251,191,36,0)');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(bx,by,BR*2,0,Math.PI*2);ctx.fill();
+  var bg2=ctx.createRadialGradient(bx-BR*0.3,by-BR*0.3,2,bx,by,BR);
+  bg2.addColorStop(0,'#fcd34d');bg2.addColorStop(0.6,'#fbbf24');bg2.addColorStop(1,'#d97706');
+  ctx.shadowColor='rgba(251,191,36,0.25)';ctx.shadowBlur=20;
+  ctx.fillStyle=bg2;ctx.beginPath();ctx.arc(bx,by,BR,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(bx,by,BR,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath();ctx.arc(bx-BR*0.25,by-BR*0.25,BR*0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('+',bx,by);
+
+  // 受力箭头（仅FORCES和SWING）
+  if(scene==='FORCES'||scene==='SWING'){
+    var al=50;
+    da(bx,by,bx,by+al,'rgba(59,130,246,0.85)');
+    ctx.fillStyle='#60a5fa';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('G',bx-16,by+al*0.5-4);
+    da(bx,by,bx+al,by,'rgba(239,68,68,0.85)');
+    ctx.fillStyle='#ef4444';ctx.fillText('F电',bx+al*0.5,by-14);
+    var fl=al*Math.SQRT2;da(bx,by,bx+al/fl*fl*0.9,by+al/fl*fl*0.9,'rgba(249,115,22,0.85)');
+    ctx.fillStyle='#fb923c';ctx.textAlign='left';ctx.fillText('F合',(2*bx+al/fl*fl*0.9)/2+12,(2*by+al/fl*fl*0.9)/2-4);
+    if(scene==='FORCES'){
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(bx,by+al);ctx.lineTo(bx+al/fl*fl*0.9,by+al);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bx+al,by);ctx.lineTo(bx+al,by+al/fl*fl*0.9);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // 速度箭头
+  if(scene==='SWING'&&ph.v>0.05){
+    var va=theta+Math.PI/2;da(bx,by,bx+ph.v*8*Math.cos(va),by+ph.v*8*Math.sin(va),'rgba(96,165,250,0.7)');
+    ctx.fillStyle='#60a5fa';ctx.font='bold 12px sans-serif';ctx.textAlign='left';ctx.fillText('v',bx+ph.v*8*Math.cos(va)+8,by+ph.v*8*Math.sin(va)-4);
+    ctx.fillStyle='rgba(96,165,250,0.4)';ctx.font='10px sans-serif';ctx.fillText(ph.v.toFixed(2)+'m/s',bx+ph.v*8*Math.cos(va)+20,by+ph.v*8*Math.sin(va)-4);
+  }
+
+  // Q3：拉力分析
+  if(scene==='Q3'){
+    var al=50;
+    ctx.save();ctx.shadowColor='rgba(168,85,247,0.3)';ctx.shadowBlur=8;
+    da(bx,by-60,bx,by,'rgba(168,85,247,0.85)');ctx.shadowBlur=0;
+    ctx.fillStyle='#d8b4fe';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillText('T',bx-14,by-30);ctx.restore();
+    da(bx,by,bx,by+al,'rgba(59,130,246,0.85)');
+    ctx.fillStyle='#60a5fa';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('G',bx-16,by+al*0.5-4);
+    da(bx,by,bx+al,by,'rgba(239,68,68,0.85)');
+    ctx.fillStyle='#ef4444';ctx.fillText('F电',bx+al*0.5,by-14);
+    ctx.fillStyle='rgba(10,15,25,0.7)';rc(bx+BR+8,by-52,130,46,6);ctx.fill();
+    ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillStyle='#d8b4fe';ctx.fillText('T = mv²/L + G',bx+BR+16,by-38);
+    ctx.fillStyle='#60a5fa';ctx.fillText('G = 1.0 N',bx+BR+16,by-22);
+    ctx.fillStyle='#ef4444';ctx.fillText('F电 = 1.0 N',bx+BR+16,by-6);
+  }
+
+  // 数据面板
+  if(scene==='SWING'||scene==='Q3'){
+    ctx.fillStyle='rgba(10,15,25,0.78)';rc(20,20,185,140,8);ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText('■ 实时物理量',32,28);
+    var its=[['θ',(Math.abs(theta)*180/Math.PI).toFixed(1)+'°','#fbbf24'],['v',ph.v.toFixed(2)+' m/s','#60a5fa'],['Ek',ph.Ek.toFixed(3)+' J','#34d399'],['Ep重',ph.Ep_g.toFixed(3)+' J','#f97316'],['Ep电',ph.Ep_e.toFixed(3)+' J','#3b82f6'],['E总',ph.Etot.toFixed(3)+' J','#a78bfa']];
+    for(var ii=0;ii<its.length;ii++){var y2=50+ii*18;
+      ctx.fillStyle='#64748b';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(its[ii][0],34,y2);
+      ctx.fillStyle=its[ii][2];ctx.textAlign='right';ctx.fillText(its[ii][1],195,y2);
+    }
+  }
+
+  // 场景标注
+  if(scene==='FORCES'){ctx.fillStyle='rgba(59,130,246,0.12)';rc(30,30,240,36,8);ctx.fill();
+    ctx.fillStyle='#93c5fd';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('第(1)问：求电场力和合力',150,48);}
+  if(scene==='SWING'){ctx.fillStyle='rgba(34,197,94,0.12)';rc(30,30,240,36,8);ctx.fill();
+    ctx.fillStyle='#86efac';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('第(2)问：找θ=37°位置',150,48);}
+  if(scene==='Q3'){ctx.fillStyle='rgba(168,85,247,0.12)';rc(30,30,260,36,8);ctx.fill();
+    ctx.fillStyle='#d8b4fe';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('第(3)问：求细线最大拉力 Tmax',170,48);}
+
+  // ===== 解题面板 =====
+  if(scene==='SOL_Q1'){
+    var sf=frame-I1;
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(10,15,25,0.88)';rc(60,100,W-120,460,12);ctx.fill();
+    ctx.fillStyle='#93c5fd';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('第(1)问：求电场力和合力',W/2,116);
+    var s1=['第一步：求电场力','F电 = qE = 5.0×10⁻⁴ × 2.0×10³','= 1.0 N','第二步：求重力','G = mg = 0.1 × 10 = 1.0 N','第三步：求合力','F电与G垂直，大小相等','由勾股定理：F合 = √(F电²+G²)','= √(1²+1²) = √2 ≈ 1.41 N'];
+    var v1=Math.min(Math.floor(sf/18)+1,s1.length);
+    for(var si=0;si<v1;si++){var sy=134+si*30,op2=clamp((sf-si*18)/14,0,1);ctx.globalAlpha=op2;
+      if(s1[si].indexOf('第')===0){ctx.fillStyle='#93c5fd';ctx.font='bold 13px sans-serif';}else{ctx.fillStyle='#cbd5e1';ctx.font='14px sans-serif';}
+      ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(s1[si],80,sy);}
+    var a1=clamp((sf-s1.length*18)/18,0,1);
+    if(a1>0){ctx.globalAlpha=a1;ctx.fillStyle='#052e16';rc(120,470,W-240,44,8);ctx.fill();
+      ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(120,470,W-240,44,8);ctx.stroke();
+      ctx.fillStyle='#22c55e';ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('F电 = 1.0 N, F合 = √2 ≈ 1.41 N',W/2,492);}
+  }
+
+  if(scene==='SOL_Q2'){
+    var sf=frame-I3;
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(10,15,25,0.88)';rc(60,80,W-120,520,12);ctx.fill();
+    ctx.fillStyle='#86efac';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('第(2)问：求 θ=37° 时的速度 v',W/2,96);
+    var s2=['第一步：确定初末位置','小球从最低点A(θ=0)运动到θ=37°','第二步：计算高度和水平位移','h = L(1-cos37°) = 1.0×(1-0.8) = 0.2 m','x = L·sin37° = 1.0×0.6 = 0.6 m','第三步：由动能定理求速度','W合 = F电·x − G·h = 1.0×0.6 − 1.0×0.2','W合 = 0.6 − 0.2 = 0.4 J','½mv² = 0.4 → v² = 0.4×2÷0.1 = 8','v = √8 = 2√2 ≈ 2.83 m/s'];
+    var v2=Math.min(Math.floor(sf/16)+1,s2.length);
+    for(var si=0;si<v2;si++){var sy=120+si*32,op2=clamp((sf-si*16)/13,0,1);ctx.globalAlpha=op2;
+      if(s2[si].indexOf('第')===0){ctx.fillStyle='#86efac';ctx.font='bold 13px sans-serif';}else{ctx.fillStyle='#cbd5e1';ctx.font='14px sans-serif';}
+      ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(s2[si],80,sy);}
+    var a2=clamp((sf-s2.length*16)/18,0,1);
+    if(a2>0){ctx.globalAlpha=a2;ctx.fillStyle='#052e16';rc(120,500,W-240,44,8);ctx.fill();
+      ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(120,500,W-240,44,8);ctx.stroke();
+      ctx.fillStyle='#22c55e';ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('v = 2√2 ≈ 2.83 m/s',W/2,522);}
+  }
+
+  if(scene==='SOL_Q3'){
+    var sf=frame-I5;
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(10,15,25,0.88)';rc(60,80,W-120,520,12);ctx.fill();
+    ctx.fillStyle='#d8b4fe';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('第(3)问：求细线最大拉力 Tmax',W/2,96);
+    var s3=['第一步：确定拉力最大位置','最低点A(θ=0)时速度最大，拉力最大','第二步：求最低点速度 vA','从释放点(θ=90°)到最低点A','W合 = F电·L + G·L = 1.0+1.0 = 2.0 J','½mvA² = 2.0 → vA² = 40 → vA = √40','第三步：求最大拉力','Tmax − G = mvA²/L','Tmax = mvA²/L + G = 0.1×40/1.0 + 1.0','= 4.0 + 1.0 = 5.0 N'];
+    var v3=Math.min(Math.floor(sf/16)+1,s3.length);
+    for(var si=0;si<v3;si++){var sy=120+si*32,op2=clamp((sf-si*16)/13,0,1);ctx.globalAlpha=op2;
+      if(s3[si].indexOf('第')===0){ctx.fillStyle='#d8b4fe';ctx.font='bold 13px sans-serif';}else{ctx.fillStyle='#cbd5e1';ctx.font='14px sans-serif';}
+      ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(s3[si],80,sy);}
+    var a3=clamp((sf-s3.length*16)/18,0,1);
+    if(a3>0){ctx.globalAlpha=a3;ctx.fillStyle='#052e16';rc(120,510,W-240,44,8);ctx.fill();
+      ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(120,510,W-240,44,8);ctx.stroke();
+      ctx.fillStyle='#22c55e';ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('Tmax = 5.0 N',W/2,532);}
+  }
+
+  // 过渡
+  if(scene==='TRANS1'){
+    var tr=clamp((frame-I2a)/Math.floor(TOTAL*0.02),0,1);
+    ctx.globalAlpha=tr<0.5?tr*2:(1-(tr-0.5)*2);
+    ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(60,200);ctx.lineTo(W-60,200);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(60,440);ctx.lineTo(W-60,440);ctx.stroke();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('第(2)问：求θ=37°时的速度',W/2,320);
+    ctx.fillStyle='#94a3b8';ctx.font='15px sans-serif';
+    ctx.fillText('下面观察小球在电场力和重力作用下的摆动过程',W/2,360);
+    ctx.globalAlpha=1;
+  }
+  if(scene==='TRANS2'){
+    var tr=clamp((frame-I4a)/Math.floor(TOTAL*0.02),0,1);
+    ctx.globalAlpha=tr<0.5?tr*2:(1-(tr-0.5)*2);
+    ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(60,200);ctx.lineTo(W-60,200);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(60,440);ctx.lineTo(W-60,440);ctx.stroke();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('第(3)问：求细线最大拉力 Tmax',W/2,320);
+    ctx.globalAlpha=1;
+  }
+
+  // 答案汇总
+  if(scene==='ENDING'){
+    ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(10,15,25,0.9)';rc(120,140,W-240,360,16);ctx.fill();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('✅ 最终答案汇总',W/2,160);
+    var sd=[['(1) 电场力','F电 = 1.0 N'],['(1) 合力','F合 = √2 ≈ 1.41 N'],['(2) θ=37°速度','v = 2√2 ≈ 2.83 m/s'],['(3) 最大拉力','Tmax = 5.0 N']];
+    for(var si=0;si<sd.length;si++){var sy=210+si*46;
+      ctx.fillStyle='#94a3b8';ctx.font='15px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(sd[si][0],W/2-160,sy);
+      ctx.fillStyle='#22c55e';ctx.font='bold 17px sans-serif';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText(sd[si][1],W/2+160,sy);
+      if(si<3){ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(W/2-140,sy+36);ctx.lineTo(W/2+140,sy+36);ctx.stroke();}}
+  }
+
+  // 右下角
+  ctx.fillStyle='rgba(255,255,255,0.04)';ctx.font='12px sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';
+  ctx.fillText('education_web',W-16,H-12);
 }
 
-var playBtn = document.getElementById('playBtn');
-var seekBar = document.getElementById('seekBar');
-
-function tick() {
-  if (playing) {
-    render();
-    frame++;
-    if (frame >= TOTAL_FRAMES) {
-      frame = TOTAL_FRAMES;
-      playing = false;
-      playBtn.textContent = '↺';
-    }
-    seekBar.value = (frame / TOTAL_FRAMES) * 100;
-    var cur = Math.floor(frame/FPS);
-    var total = Math.floor(TOTAL_FRAMES/FPS);
-    var fm = function(s) { return (s < 10 ? '0':'') + s; };
-    document.getElementById('time-display').textContent =
-      fm(Math.floor(cur/60)) + ':' + fm(cur%60) + ' / ' +
-      fm(Math.floor(total/60)) + ':' + fm(total%60);
+// 播放控制
+var playBtn=document.getElementById('playBtn'),seekBar=document.getElementById('seekBar');
+function tick(){
+  if(playing){render();frame++;
+    if(frame>=TOTAL){frame=TOTAL;playing=false;playBtn.textContent='↺';}
+    seekBar.value=(frame/TOTAL)*100;
+    var cur=Math.floor(frame/FPS),tl=Math.floor(TOTAL/FPS);
+    var fm=function(s){return(s<10?'0':'')+s;};
+    document.getElementById('time-display').textContent=fm(Math.floor(cur/60))+':'+fm(cur%60)+' / '+fm(Math.floor(tl/60))+':'+fm(tl%60);
   }
   requestAnimationFrame(tick);
 }
-
-playBtn.addEventListener('click', function() {
-  if (frame >= TOTAL_FRAMES) { frame = 0; playing = true; this.textContent = '⏸'; return; }
-  playing = !playing;
-  this.textContent = playing ? '⏸' : '▶';
+playBtn.addEventListener('click',function(){
+  if(frame>=TOTAL){frame=0;playing=true;playBtn.textContent='⏸';return;}
+  playing=!playing;playBtn.textContent=playing?'⏸':'▶';
 });
-seekBar.addEventListener('mousedown', function() { playing = false; playBtn.textContent = '▶'; });
-seekBar.addEventListener('input', function() {
-  frame = Math.round((this.value / 100) * TOTAL_FRAMES);
-  render();
-});
-document.addEventListener('keydown', function(e) { if (e.code === 'Space') { e.preventDefault(); playBtn.click(); } });
+seekBar.addEventListener('mousedown',function(){playing=false;playBtn.textContent='▶';});
+seekBar.addEventListener('input',function(){frame=Math.round((this.value/100)*TOTAL);render();});
+document.addEventListener('keydown',function(e){if(e.code==='Space'){e.preventDefault();playBtn.click();}});
 
-seekBar.value = 0;
-tick();
+seekBar.value=0;tick();
 </script>
 </body>
 </html>
