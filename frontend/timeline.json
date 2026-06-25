@@ -4,7 +4,7 @@
     "fps": 60,
     "width": 960,
     "height": 640,
-    "title": "光年的定义",
+    "title": "光年",
     "mode": "explain_only"
   },
   "timeline": [
@@ -141,7 +141,7 @@
             "cx": 480,
             "cy": 600,
             "targetY": 580,
-            "text": "日常用语中容易混淆时间和距离单位 9.8 m/s²",
+            "text": "场景A 9.8 m/s²",
             "color": "#FFD54F",
             "font": "20px sans-serif",
             "startFrame": 1561,
@@ -154,7 +154,7 @@
           "params": {
             "cx": 80,
             "cy": 30,
-            "text": "日常用语中容易混淆时间和距离单位",
+            "text": "场景A",
             "color": "#ffffff",
             "bgColor": "rgba(0,0,0,0.5)",
             "fontSize": 14
@@ -199,7 +199,7 @@
             "cy": 380,
             "scale": 0.75,
             "weight": 1.6,
-            "label": "📏 重力（天文科普中常见误解）",
+            "label": "📏 重力（场景B）",
             "highlight": true
           }
         },
@@ -209,7 +209,7 @@
             "cx": 480,
             "cy": 600,
             "targetY": 580,
-            "text": "天文科普中常见误解 1.6 m/s²",
+            "text": "场景B 1.6 m/s²",
             "color": "#FFD54F",
             "font": "20px sans-serif",
             "startFrame": 2762,
@@ -222,7 +222,7 @@
           "params": {
             "cx": 80,
             "cy": 30,
-            "text": "天文科普中常见误解",
+            "text": "场景B",
             "color": "#ffffff",
             "bgColor": "rgba(0,0,0,0.5)",
             "fontSize": 14
@@ -304,18 +304,6 @@
             "borderColor": "#FF9800",
             "popStartFrame": 3318,
             "popDuration": 18
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 480,
-            "cy": 540,
-            "text": "核心公式: 1光年 = c × 1年，其中c≈3×10^8 m/s",
-            "startFrame": 3723,
-            "charsPerSecond": 6,
-            "color": "#FFD700",
-            "font": "bold 26px sans-serif"
           }
         },
         {
@@ -414,7 +402,7 @@
           "params": {
             "cx": 480,
             "cy": 120,
-            "text": "判断‘光年是时间单位’这一说法的正确性",
+            "text": "题目中陈述“光年是时间单位”，这是对光年概念的常见误解。",
             "startFrame": 180,
             "charsPerSecond": 12,
             "color": "#1A237E",
@@ -490,36 +478,6 @@
             "text": "📍 受力分析",
             "color": "#81D4FA",
             "fontSize": 18
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 140,
-            "width": 500,
-            "height": 50,
-            "text": "日常用语中容易混淆时间和距离单位: ",
-            "textColor": "#E0E0E0",
-            "bgColor": "rgba(30,30,60,0.85)",
-            "borderColor": "#5C6BC0",
-            "popStartFrame": 721,
-            "popDuration": 16
-          }
-        },
-        {
-          "component": "drawPopupLabel",
-          "params": {
-            "cx": 480,
-            "cy": 220,
-            "width": 500,
-            "height": 50,
-            "text": "天文科普中常见误解: ",
-            "textColor": "#E0E0E0",
-            "bgColor": "rgba(30,30,60,0.85)",
-            "borderColor": "#5C6BC0",
-            "popStartFrame": 739,
-            "popDuration": 16
           }
         },
         {
@@ -647,18 +605,6 @@
             "popStartFrame": 3603,
             "popDuration": 20
           }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 480,
-            "cy": 380,
-            "text": "依据公式: 1光年 = c × 1年，其中c≈3×10^8 m/s",
-            "startFrame": 3843,
-            "charsPerSecond": 8,
-            "color": "#FFD700",
-            "font": "22px sans-serif"
-          }
         }
       ]
     },
@@ -687,7 +633,7 @@
           "params": {
             "cx": 480,
             "cy": 300,
-            "text": "1光年 = c × 1年，其中c≈3×10^8 m/s",
+            "text": "",
             "startFrame": 4204,
             "charsPerSecond": 6,
             "color": "#FFD700",
@@ -771,23 +717,11 @@
           "params": {
             "cx": 480,
             "cy": 130,
-            "text": "光年是天文学中使用的距离单位，表示光在真空中一年内所走的距离。",
+            "text": "光年是天文学中常用的距离单位，表示光在真空中一年内传播的距离。",
             "startFrame": 360,
             "charsPerSecond": 12,
             "color": "#E0E0E0",
             "font": "16px sans-serif"
-          }
-        },
-        {
-          "component": "drawTypewriterText",
-          "params": {
-            "cx": 480,
-            "cy": 560,
-            "text": "公式: 1光年 = c × 1年，其中c≈3×10^8 m/s",
-            "startFrame": 600,
-            "charsPerSecond": 6,
-            "color": "#81D4FA",
-            "font": "bold 22px sans-serif"
           }
         }
       ]
@@ -829,7 +763,7 @@
             "cy": 110,
             "width": 600,
             "height": 50,
-            "text": "❌ 常见误解: 误以为光年是时间单位，实际上它是长度单位",
+            "text": "❌ 常见误解: 常被误认为是时间单位，实际上它是长度（距离）单位。",
             "textColor": "#FFAB91",
             "bgColor": "rgba(60,20,20,0.85)",
             "borderColor": "#FF5722",

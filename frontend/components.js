@@ -3078,6 +3078,270 @@ function drawElectricPendulum(ctx, params, frame) {
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
+/**
+ * drawCinematicElectricPendulum — 精良版电场中带电单摆动画。
+ */
+function drawCinematicElectricPendulum(ctx, params, frame) {
+  var frames = params.frames || [];
+  var totalFrames = params.totalFrames || 4800;
+  var mass = params.mass || 0.1, q = params.q || 5e-4, E = params.E || 2000;
+  var g = params.g || 10, L = params.L || 1.0;
+  var Fq = params.Fq || 1.0, Fg = params.Fg || 1.0, Fr = params.Fr || 1.414;
+  var captions = params.captions || {};
+  var W = ctx.canvas.width, H = ctx.canvas.height;
+
+  var total = totalFrames;
+  var I0 = Math.floor(total*0.15), I1 = Math.floor(total*0.30), I2 = Math.floor(total*0.65);
+  var I3 = Math.floor(total*0.85), I4 = Math.floor(total*0.97);
+  var scene = frame < I0 ? 'INTRO' : frame < I1 ? 'FORCES' : frame < I2 ? 'SWING' : frame < I3 ? 'ENERGY' : frame < I4 ? 'SOLUTION' : 'ENDING';
+
+  var CX = W/2, CY = 130, Lp = 130, BR = 18;
+
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function clamp(v,l,h){return Math.max(l,Math.min(h,v));}
+  function eo(t){return 1-Math.pow(1-t,3);}
+  function rc(c,x,y,w,h,r){
+    if(r>w/2)r=w/2;if(r>h/2)r=h/2;
+    c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);
+    c.arcTo(x+w,y,x+w,y+r,r);c.lineTo(x+w,y+h-r);
+    c.arcTo(x+w,y+h,x+w-r,y+h,r);c.lineTo(x+r,y+h);
+    c.arcTo(x,y+h,x,y+h-r,r);c.lineTo(x,y+r);
+    c.arcTo(x,y,x+r,y,r);c.closePath();
+  }
+  function da(c,x1,y1,x2,y2,cl){
+    var a=Math.atan2(y2-y1,x2-x1);
+    c.strokeStyle=cl;c.lineWidth=2.5;
+    c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
+    c.fillStyle=cl;
+    c.beginPath();c.moveTo(x2,y2);
+    c.lineTo(x2-10*Math.cos(a-0.5),y2-10*Math.sin(a-0.5));
+    c.lineTo(x2-10*Math.cos(a+0.5),y2-10*Math.sin(a+0.5));
+    c.closePath();c.fill();
+  }
+
+  // 物理状态
+  var theta=0,v=0,Ek=0,Ep_g=0,Ep_e=0,Etot=0;
+  if(frames&&frames.length>0){
+    var fi=Math.min(Math.floor(frame/total*frames.length),frames.length-1);
+    var d=frames[fi]||{};
+    theta=d.theta||0;v=d.v||0;Ek=d.Ek||0;Ep_g=d.Ep_gravity||d.Ep||0;Ep_e=d.Ep_electric||0;Etot=d.E_total||0;
+  }
+  var bX=CX+Lp*Math.sin(theta),bY=CY+Lp*Math.cos(theta);
+
+  // 背景
+  var bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W);
+  bg.addColorStop(0,'#0f172a');bg.addColorStop(0.6,'#0a0e17');bg.addColorStop(1,'#060a0f');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  if(scene==='INTRO'||scene==='ENDING'){
+    ctx.fillStyle='rgba(255,255,255,0.1)';
+    for(var i=0;i<50;i++){
+      var tw=Math.sin(frame*0.02+i*1.3)*0.5+0.5;
+      ctx.globalAlpha=tw*0.25;
+      ctx.beginPath();ctx.arc((i*137.5+i*7)%W,(i*97.3+i*13)%(H*0.35),0.5+(i%3)*0.3,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // 电场箭头
+  if(scene!=='ENDING'){
+    var fo=(frame*1.5)%30;
+    for(var y=40;y<bY+30&&y<H-40;y+=50){
+      ctx.strokeStyle='rgba(59,130,246,0.09)';ctx.lineWidth=1.2;
+      ctx.setLineDash([6,10]);ctx.lineDashOffset=-frame*1.2;
+      ctx.beginPath();ctx.moveTo(60,y);ctx.lineTo(W-60,y);ctx.stroke();
+      ctx.setLineDash([]);ctx.lineDashOffset=0;
+      for(var x=100;x<W-80;x+=70){
+        var fx=x+((fo<15)?fo*1.5:(fo-30)*1.5);
+        if(fx<60||fx>W-60)continue;
+        ctx.fillStyle='rgba(59,130,246,0.1)';
+        ctx.beginPath();ctx.moveTo(fx+10,y);ctx.lineTo(fx+2,y-4);ctx.lineTo(fx+2,y+4);ctx.closePath();ctx.fill();
+      }
+    }
+    ctx.fillStyle='rgba(59,130,246,0.18)';ctx.font='bold 12px sans-serif';
+    ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('E →',W-60,42);
+  }
+
+  // 圆弧轨迹
+  ctx.save();ctx.globalAlpha=0.08;
+  ctx.strokeStyle='#94a3b8';ctx.lineWidth=1;ctx.setLineDash([4,6]);
+  ctx.beginPath();ctx.arc(CX,CY,Lp,0.15,Math.PI-0.15,false);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+
+  // 天花板+悬点
+  var gd=ctx.createLinearGradient(CX-120,CY,CX+120,CY);
+  gd.addColorStop(0,'rgba(71,85,105,0)');gd.addColorStop(0.3,'rgba(71,85,105,0.5)');
+  gd.addColorStop(0.7,'rgba(71,85,105,0.5)');gd.addColorStop(1,'rgba(71,85,105,0)');
+  ctx.strokeStyle=gd;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(CX-100,CY);ctx.lineTo(CX+100,CY);ctx.stroke();
+  ctx.strokeStyle='rgba(71,85,105,0.2)';ctx.lineWidth=1;
+  for(var ti=-90;ti<=90;ti+=15){ctx.beginPath();ctx.moveTo(CX+ti,CY);ctx.lineTo(CX+ti-5,CY+6);ctx.stroke();}
+  ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(CX,CY,5,0,Math.PI*2);ctx.fill();
+
+  // 摆线
+  ctx.strokeStyle='rgba(148,163,184,0.5)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(bX,bY);ctx.stroke();
+  if(scene==='INTRO'||scene==='FORCES'){
+    ctx.fillStyle='rgba(148,163,184,0.2)';ctx.font='11px sans-serif';ctx.textAlign='center';
+    ctx.fillText('L = 1.0m',(CX+bX)/2-10,(CY+bY)/2-6);
+  }
+
+  // 角度
+  if(Math.abs(theta)>0.02&&(scene==='SWING'||scene==='ENERGY')){
+    ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(CX,CY,45,-0.05,theta>0?theta:-theta);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+    ctx.fillText('θ='+(Math.abs(theta)*180/Math.PI).toFixed(1)+'°',CX+45*0.6*(theta>0?1:-1),CY+45*0.6+6);
+  }
+
+  // 摆球
+  var gl=ctx.createRadialGradient(bX,bY,2,bX,bY,BR*2);
+  gl.addColorStop(0,'rgba(251,191,36,0.15)');gl.addColorStop(1,'rgba(251,191,36,0)');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(bX,bY,BR*2,0,Math.PI*2);ctx.fill();
+  var bg2=ctx.createRadialGradient(bX-BR*0.3,bY-BR*0.3,2,bX,bY,BR);
+  bg2.addColorStop(0,'#fcd34d');bg2.addColorStop(0.6,'#fbbf24');bg2.addColorStop(1,'#d97706');
+  ctx.shadowColor='rgba(251,191,36,0.25)';ctx.shadowBlur=20;
+  ctx.fillStyle=bg2;ctx.beginPath();ctx.arc(bX,bY,BR,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(bX,bY,BR,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath();ctx.arc(bX-BR*0.25,bY-BR*0.25,BR*0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('+',bX,bY);
+
+  // 受力箭头
+  if(scene==='FORCES'||scene==='SWING'||scene==='ENERGY'){
+    var al=50,fqX=bX+al,fqY=bY,fgX=bX,fgY=bY+al;
+    var frL=Math.sqrt(al*al+al*al),frX=bX+(al/frL)*frL*0.9,frY=bY+(al/frL)*frL*0.9;
+    ctx.save();
+    ctx.shadowColor='rgba(59,130,246,0.3)';ctx.shadowBlur=8;
+    da(ctx,bX,bY,fgX,fgY,'rgba(59,130,246,0.85)');ctx.shadowBlur=0;
+    ctx.fillStyle='#60a5fa';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('G',bX-16,bY+al*0.5-4);
+    ctx.shadowColor='rgba(239,68,68,0.3)';ctx.shadowBlur=8;
+    da(ctx,bX,bY,fqX,fqY,'rgba(239,68,68,0.85)');ctx.shadowBlur=0;
+    ctx.fillStyle='#ef4444';ctx.fillText('F电',bX+al*0.5,bY-14);
+    ctx.shadowColor='rgba(249,115,22,0.3)';ctx.shadowBlur=8;
+    da(ctx,bX,bY,frX,frY,'rgba(249,115,22,0.85)');ctx.shadowBlur=0;
+    ctx.fillStyle='#fb923c';ctx.textAlign='left';ctx.fillText('F合',(bX+frX)/2+12,(bY+frY)/2-4);
+    if(scene==='FORCES'){
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(bX,bY+al);ctx.lineTo(frX,bY+al);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bX+al,bY);ctx.lineTo(bX+al,frY);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,255,255,0.05)';ctx.font='11px sans-serif';ctx.fillText('平行四边形法则',frX+16,frY+4);
+    }
+    ctx.fillStyle='rgba(10,15,25,0.7)';
+    rc(ctx,bX+BR+8,bY-52,115,48,6);ctx.fill();
+    ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillStyle='#ef4444';ctx.fillText('F电 = '+Fq.toFixed(1)+' N',bX+BR+16,bY-38);
+    ctx.fillStyle='#60a5fa';ctx.fillText('G   = '+Fg.toFixed(1)+' N',bX+BR+16,bY-22);
+    ctx.fillStyle='#fb923c';ctx.fillText('F合 = '+Fr.toFixed(2)+' N',bX+BR+16,bY-6);
+    ctx.restore();
+  }
+
+  // 速度箭头
+  if((scene==='SWING'||scene==='ENERGY')&&v>0.05){
+    var va=theta+Math.PI/2,vx=bX+v*5*Math.cos(va),vy=bY+v*5*Math.sin(va);
+    da(ctx,bX,bY,vx,vy,'rgba(96,165,250,0.7)');
+    ctx.fillStyle='#60a5fa';ctx.font='bold 12px sans-serif';ctx.textAlign='left';
+    ctx.fillText('v',vx+8,vy-4);
+    ctx.fillStyle='rgba(96,165,250,0.4)';ctx.font='10px sans-serif';
+    ctx.fillText(v.toFixed(2)+'m/s',vx+20,vy-4);
+  }
+
+  // 数据面板
+  if(scene==='SWING'||scene==='ENERGY'){
+    var px=20,py=20,pw=185,ph=140;
+    ctx.fillStyle='rgba(10,15,25,0.78)';
+    rc(ctx,px,py,pw,ph,8);ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText('■ 实时物理量',px+12,py+8);
+    var its=[{l:'角度 θ',v:(Math.abs(theta)*180/Math.PI).toFixed(1)+'°',c:'#fbbf24'},{l:'速度 v',v:v.toFixed(2)+' m/s',c:'#60a5fa'},{l:'动能 Ek',v:Ek.toFixed(3)+' J',c:'#34d399'},{l:'重力势能',v:Ep_g.toFixed(3)+' J',c:'#f97316'},{l:'电势能',v:Ep_e.toFixed(3)+' J',c:'#3b82f6'},{l:'总能量',v:Etot.toFixed(3)+' J',c:'#a78bfa'}];
+    for(var ii=0;ii<its.length;ii++){
+      var y2=py+30+ii*18;
+      ctx.fillStyle='#64748b';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText(its[ii].l,px+14,y2);
+      ctx.fillStyle=its[ii].c;ctx.textAlign='right';
+      ctx.fillText(its[ii].v,px+pw-10,y2);
+    }
+  }
+
+  // 能量条
+  if(scene==='ENERGY'){
+    var K=Math.max(0.001,Ek),Pg=Math.max(0.001,Ep_g),Pe2=Math.max(0.001,Math.abs(Ep_e));
+    var ttl=K+Pg+Pe2;
+    var bx2=30,by2=H-60,bw2=W-60,bh2=14;
+    ctx.fillStyle='rgba(50,60,80,0.3)';
+    rc(ctx,bx2,by2,bw2,bh2,7);ctx.fill();
+    if(ttl>0){
+      var eW=(Pe2/ttl)*bw2,kW=(K/ttl)*bw2,gW=(Pg/ttl)*bw2;
+      ctx.fillStyle='#3b82f6';rc(ctx,bx2,by2,Math.max(eW,3),bh2,7);ctx.fill();
+      ctx.fillStyle='#34d399';ctx.fillRect(bx2+eW,by2,Math.max(kW,3),bh2);
+      ctx.fillStyle='#f97316';rc(ctx,bx2+eW+kW,by2,Math.max(gW,3),bh2,7);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+      ctx.fillText('⚡电势',bx2+6,by2-4);ctx.textAlign='center';ctx.fillText('动能',bx2+eW+kW/2,by2-4);
+      ctx.textAlign='right';ctx.fillText('重力势',bx2+bw2-6,by2-4);
+      ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText('E总 = '+Etot.toFixed(3)+' J（守恒）',bx2+bw2/2,by2+bh2+6);
+    }
+  }
+
+  // 解题过程
+  if(scene==='SOLUTION'){
+    var SF=frame-(I4-Math.floor(total*0.12));
+    var steps=['已知：m=0.1kg, q=5×10⁻⁴C, E=2×10³N/C, L=1.0m, g=10m/s²','F电 = qE = 1.0 N','G = mg = 1.0 N','动能定理：W电+W重=½mv²','qE·L·sinθ+mg·L·(1-cosθ)=½mv²','θ=37°: v²=2×(0.6+0.2)/0.1=16','v = 4 m/s'];
+    var px2=80,py2=150,pw2=W-160,ph2=340;
+    ctx.fillStyle='rgba(10,15,25,0.88)';
+    rc(ctx,px2,py2,pw2,ph2,12);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='15px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('📝 解题过程',px2+pw2/2,py2+16);
+    var vs=Math.min(Math.floor(SF/15)+1,steps.length);
+    for(var si=0;si<vs;si++){
+      var sy2=py2+48+si*38,op=clamp((SF-si*15)/20,0,1);
+      ctx.globalAlpha=op;
+      if(si===steps.length-1){
+        ctx.fillStyle='#052e16';rc(ctx,px2+30,sy2-6,pw2-60,36,8);ctx.fill();
+        ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(ctx,px2+30,sy2-6,pw2-60,36,8);ctx.stroke();
+        ctx.fillStyle='#22c55e';ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('✅ '+steps[si],px2+pw2/2,sy2+14);
+      }else{
+        ctx.fillStyle='#64748b';ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+        ctx.fillText('• '+steps[si],px2+36,sy2);
+      }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // 标题
+  if(scene==='INTRO'){
+    var pr=clamp(frame/Math.floor(total*0.08),0,1);
+    var al2=pr<0.7?pr/0.7:(1-(pr-0.7)/0.3);
+    ctx.globalAlpha=Math.max(0,al2);
+    ctx.fillStyle='#fff';ctx.font='bold 30px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('电场中的带电单摆',CX,lerp(300,220,eo(Math.min(pr*2,1))));
+    if(pr>0.35){ctx.globalAlpha=(pr-0.35)/0.25;ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='16px sans-serif';ctx.fillText('力与运动的可视化分析',CX,270);}
+    ctx.globalAlpha=1;
+  }
+
+  // 字幕
+  var ct='';
+  if(scene==='INTRO'&&frame>total*0.03&&frame<total*0.12) ct=captions.intro||'';
+  else if(scene==='FORCES'&&frame>total*0.17&&frame<total*0.27) ct=captions.forces||'';
+  else if(scene==='SWING'&&frame>total*0.33&&frame<total*0.38) ct=captions.swing||'';
+  else if(scene==='ENERGY'&&frame>total*0.68&&frame<total*0.73) ct=captions.energy||'';
+  else if(scene==='SOLUTION') ct=captions.solution||'';
+  else if(scene==='ENDING') ct=captions.ending||'';
+  if(ct){
+    var ta=scene==='SOLUTION'||scene==='ENDING'?1:0.9;
+    ctx.globalAlpha=ta;
+    ctx.fillStyle='rgba(0,0,0,0.5)';rc(ctx,W/2-300,H-50,600,36,8);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(ct,W/2,H-32);
+  }
+}
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
 /* 导出方式：优先挂到 window，否则尝试 CommonJS */
 if (typeof window !== 'undefined') {
   window.Components = {
@@ -3109,6 +3373,7 @@ if (typeof window !== 'undefined') {
     drawLever: drawLever,
     drawContainer: drawContainer,
     drawLightRay: drawLightRay,
+    drawCinematicElectricPendulum: drawCinematicElectricPendulum,
     sceneLabel: sceneLabel,
     floatUpText: floatUpText,
     flashLabel: flashLabel,

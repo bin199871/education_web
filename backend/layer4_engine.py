@@ -850,62 +850,45 @@ def render_simulate_physics(seg, cw, ch):
         g_val = ep.get("g", 10)
         fs = ep.get("force_summary", {})
 
+        # 预计算力值
+        Fq = q_val * e_val  # F电 = qE
+        Fg = mass * g_val   # G = mg
+        Fr_val = (Fq**2 + Fg**2) ** 0.5  # F合 = √(F电²+G²)
+
+        total_cinematic_frames = int(max(total_frames * 15, 100 * fps))  # 总时长约 100s
+        # 限制最大帧数避免异常
+        total_cinematic_frames = min(total_cinematic_frames, 7200)
+
         layers = [
             {
-                "component": "drawElectricFieldBg",
+                "component": "drawCinematicElectricPendulum",
                 "params": {
-                    "cx": cw // 2, "cy": ch // 2,
-                    "width": cw, "height": ch,
-                    "direction": "right",
-                    "fieldColor": "rgba(100,180,255,0.06)",
-                    "arrowColor": "rgba(100,180,255,0.15)",
+                    "frames": frames,
+                    "totalFrames": total_cinematic_frames,
+                    "mass": mass, "q": q_val,
+                    "E": e_val, "g": g_val, "L": L_val,
+                    "Fq": round(Fq, 3),
+                    "Fg": round(Fg, 3),
+                    "Fr": round(Fr_val, 3),
+                    "captions": {
+                        "intro": "在竖直平面内，存在水平向右的匀强电场… 一个带正电的小球悬挂于 O 点",
+                        "forces": "小球受到三个力：电场力 F电、重力 G、以及它们的合力 F合",
+                        "swing": "由静止释放后，小球在电场力和重力共同作用下开始摆动",
+                        "energy": "能量在电势能、动能和重力势能之间相互转化，总能量保持不变",
+                        "solution": "由动能定理：W电 + W重 = ½mv²，代入数据得 v = 4 m/s",
+                        "ending": "电场中的摆 — 力与能量的完美结合",
+                    },
                 }
-            },
-            {
-                "component": "drawElectricPendulum",
-                "params": {
-                    "cx": cw // 2, "cy": 120,
-                    "length": L_val * 80,
-                    "bobSize": 18,
-                    "bobColor": "#fbbf24",
-                    "mass": mass,
-                    "q": q_val,
-                    "E": e_val,
-                    "g": g_val,
-                    "scale": 1.0,
-                    "showAngle": True,
-                    "showForce": True,
-                    "showVelocity": True,
-                    "_realLength": L_val,
-                }
-            },
-            {
-                "component": "drawPhysicsHUD",
-                "params": {
-                    "panelX": cw - 220, "panelY": 50,
-                    "showEnergy": True,
-                    "mode": "electric_pendulum",
-                    "mass": mass, "q": q_val, "E": e_val, "g": g_val,
-                }
-            },
-            {
-                "component": "drawPhaseLabel",
-                "params": {"x": 16, "y": 16}
             },
         ]
 
         return {
-            "_mode": "simulate",
+            "_mode": "cinematic",
             "layers": layers,
             "_physics_frames": frames,
-            "_physics_total_frames": total_frames,
+            "_physics_total_frames": total_cinematic_frames,
             "_physics_fps": fps,
             "_physics_summary": {**summary, "force_summary": fs},
-            "_stage_config": {
-                "type": "electric_pendulum",
-                "length": L_val, "mass": mass, "charge": q_val,
-                "electric_field": e_val, "g": g_val,
-            }
         }
 
     # 场景配置（根据阶段类型自适应）
@@ -1203,10 +1186,26 @@ def orchestrate(storyboard: dict) -> dict:
             renderer = SCENE_RENDERERS.get(scene_type, _get_fallback_renderer)
             render_result = renderer(seg, canvas_w, canvas_h)
 
-            # 判断是否为 simulate 模式
-            is_simulate = isinstance(render_result, dict) and render_result.get("_mode") == "simulate"
+            render_mode = render_result.get("_mode") if isinstance(render_result, dict) else "explain"
+            is_cinematic = render_mode == "cinematic"
+            is_simulate = render_mode == "simulate"
 
-            if is_simulate:
+            if is_cinematic:
+                sim_data = render_result
+                layers = sim_data.get("layers", [])
+                physics_total = sim_data.get("_physics_total_frames", 0)
+                actual_frames = max(physics_total, 30)
+                start = current_pos; end = start + actual_frames; current_pos = end + 1
+                entry = {
+                    "id": f"{act['act_number']}-{seg['id']}",
+                    "name": seg.get("name", ""),
+                    "mode": "cinematic", "startFrame": start, "endFrame": end,
+                    "background": background, "transition_in": None,
+                    "transition": {"duration": 10, "easing": "easeOut"},
+                    "layers": layers,
+                }
+
+            elif is_simulate:
                 # ── 仿真模式处理 ──
                 sim_data = render_result
                 layers = sim_data.get("layers", [])
