@@ -3091,7 +3091,7 @@ function drawCinematicElectricPendulum(ctx, params, frame) {
   var W = ctx.canvas.width, H = ctx.canvas.height;
 
   var total = totalFrames;
-  var I0 = Math.floor(total*0.15), I1 = Math.floor(total*0.30), I2 = Math.floor(total*0.65);
+  var I0 = Math.floor(total*0.02), I1 = Math.floor(total*0.17), I2 = Math.floor(total*0.55);
   var I3 = Math.floor(total*0.85), I4 = Math.floor(total*0.97);
   var scene = frame < I0 ? 'INTRO' : frame < I1 ? 'FORCES' : frame < I2 ? 'SWING' : frame < I3 ? 'ENERGY' : frame < I4 ? 'SOLUTION' : 'ENDING';
 
@@ -3287,44 +3287,44 @@ function drawCinematicElectricPendulum(ctx, params, frame) {
     }
   }
 
-  // 解题过程
+    // 解题过程（简化版）
   if(scene==='SOLUTION'){
-    var SF=frame-(I4-Math.floor(total*0.12));
-    var steps=['已知：m=0.1kg, q=5×10⁻⁴C, E=2×10³N/C, L=1.0m, g=10m/s²','F电 = qE = 1.0 N','G = mg = 1.0 N','动能定理：W电+W重=½mv²','qE·L·sinθ+mg·L·(1-cosθ)=½mv²','θ=37°: v²=2×(0.6+0.2)/0.1=16','v = 4 m/s'];
-    var px2=80,py2=150,pw2=W-160,ph2=340;
-    ctx.fillStyle='rgba(10,15,25,0.88)';
-    rc(ctx,px2,py2,pw2,ph2,12);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='15px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText('📝 解题过程',px2+pw2/2,py2+16);
-    var vs=Math.min(Math.floor(SF/15)+1,steps.length);
+    var SF=frame-(I4-Math.floor(total*0.10));
+    var steps=['已知：m=0.1kg, q=5×10⁻⁴C, E=2×10³N/C, L=1.0m, g=10m/s²','电场力：F电 = qE = 1.0 N','重力：G = mg = 1.0 N','动能定理：W电+W重=½mv²','代入 θ=37°：v²=2×(0.6+0.2)/0.1=16'];
+    var px2=80,py2=100,pw2=W-160;
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(10,15,25,0.88)';rc(ctx,px2,py2,pw2,380,12);ctx.fill();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('解题过程',px2+pw2/2,py2+18);
+    var vs=Math.min(Math.floor(SF/20)+1,steps.length);
     for(var si=0;si<vs;si++){
-      var sy2=py2+48+si*38,op=clamp((SF-si*15)/20,0,1);
-      ctx.globalAlpha=op;
-      if(si===steps.length-1){
-        ctx.fillStyle='#052e16';rc(ctx,px2+30,sy2-6,pw2-60,36,8);ctx.fill();
-        ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(ctx,px2+30,sy2-6,pw2-60,36,8);ctx.stroke();
-        ctx.fillStyle='#22c55e';ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText('✅ '+steps[si],px2+pw2/2,sy2+14);
-      }else{
-        ctx.fillStyle='#64748b';ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
-        ctx.fillText('• '+steps[si],px2+36,sy2);
-      }
-      ctx.globalAlpha=1;
+      var sy2=py2+56+si*38,op2=clamp((SF-si*20)/15,0,1);
+      ctx.globalAlpha=op2;
+      ctx.fillStyle='#64748b';ctx.font='bold 13px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(String(si+1)+'.',px2+30,sy2);
+      ctx.fillStyle='#cbd5e1';ctx.font='15px sans-serif';
+      ctx.fillText(steps[si],px2+56,sy2);
+    }
+    var ans=clamp((SF-steps.length*20)/20,0,1);
+    if(ans>0){
+      ctx.globalAlpha=ans;
+      ctx.fillStyle='#052e16';rc(ctx,px2+40,py2+270,pw2-80,60,10);ctx.fill();
+      ctx.strokeStyle='#22c55e';ctx.lineWidth=2;rc(ctx,px2+40,py2+270,pw2-80,60,10);ctx.stroke();
+      ctx.fillStyle='#22c55e';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('答案：v = 4 m/s（当 θ=37° 时）',px2+pw2/2,py2+300);
     }
   }
 
-  // 标题
+  // 标题（快速淡入）
   if(scene==='INTRO'){
-    var pr=clamp(frame/Math.floor(total*0.08),0,1);
-    var al2=pr<0.7?pr/0.7:(1-(pr-0.7)/0.3);
-    ctx.globalAlpha=Math.max(0,al2);
-    ctx.fillStyle='#fff';ctx.font='bold 30px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('电场中的带电单摆',CX,lerp(300,220,eo(Math.min(pr*2,1))));
-    if(pr>0.35){ctx.globalAlpha=(pr-0.35)/0.25;ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='16px sans-serif';ctx.fillText('力与运动的可视化分析',CX,270);}
+    var pr=clamp(frame/Math.floor(total*0.02),0,1);
+    ctx.globalAlpha=Math.max(0,1-pr*2);
+    ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('电场中的带电单摆',CX,230);
     ctx.globalAlpha=1;
   }
 
-  // 字幕
+  // 字幕// 字幕
   var ct='';
   if(scene==='INTRO'&&frame>total*0.03&&frame<total*0.12) ct=captions.intro||'';
   else if(scene==='FORCES'&&frame>total*0.17&&frame<total*0.27) ct=captions.forces||'';
