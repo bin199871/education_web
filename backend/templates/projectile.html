@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<title>平抛运动 - 物理讲解动画</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b0e1a;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Microsoft YaHei','PingFang SC',sans-serif;padding:10px}
+.app{position:relative;width:100%;max-width:960px;aspect-ratio:3/2;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.stars{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) infinite alternate}@keyframes twinkle{0%{opacity:.1}100%{opacity:.8}}
+#mainCanvas{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
+.solution-panel{position:absolute;right:0;top:50%;transform:translate(100%,-50%);z-index:4;width:270px;max-height:78%;padding:22px 18px;background:rgba(8,12,22,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-left:1px solid rgba(255,255,255,.06);border-radius:14px 0 0 14px;overflow-y:auto;transition:transform .55s cubic-bezier(.23,1,.32,1)}
+.solution-panel.visible{transform:translate(0,-50%)}
+.panel-title{font-size:14px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06)}
+.step-row{opacity:0;transform:translateX(18px);transition:opacity .4s ease,transform .4s ease;margin-bottom:7px;font-size:13px;line-height:1.6;color:#cbd5e1;display:flex;align-items:flex-start;gap:6px}
+.step-row.visible{opacity:1;transform:translateX(0)}.step-badge{display:inline-flex;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.07);align-items:center;justify-content:center;font-size:10px;color:#94a3b8;flex-shrink:0;margin-top:2px}
+.answer-box{margin-top:12px;padding:10px 14px;border:1px solid rgba(34,197,94,.25);border-radius:8px;opacity:0;transition:opacity .5s ease,transform .5s cubic-bezier(.34,1.56,.64,1);transform:scale(.9);text-align:center}
+.answer-box.visible{opacity:1;transform:scale(1);background:rgba(34,197,94,.08)}.answer-text{color:#22c55e;font-size:15px;font-weight:700}
+.color-result{color:#22c55e}
+.scene-overlay{position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:3;text-align:center;pointer-events:none}
+.scene-title{color:#e2e8f0;font-size:15px;font-weight:700;background:rgba(0,0,0,.5);padding:5px 18px;border-radius:20px;backdrop-filter:blur(4px);opacity:0;transition:opacity .5s ease;white-space:nowrap}
+.scene-title.visible{opacity:1}
+.known-panel{position:absolute;top:60px;left:20px;z-index:2;pointer-events:none;background:rgba(10,15,25,.75);border-radius:10px;padding:14px 16px;opacity:0;transition:opacity .6s ease}
+.known-panel.visible{opacity:1}.known-title{color:#94a3b8;font-size:11px;font-weight:700;margin-bottom:6px}
+.known-row{color:#cbd5e1;font-size:12px;line-height:1.8}
+.ending-bg{position:absolute;inset:0;z-index:5;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity .8s ease;pointer-events:none}
+.ending-bg.visible{opacity:1;pointer-events:auto}
+.ending-card{background:rgba(10,15,25,.94);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:30px 40px;width:500px;text-align:center;transform:scale(.92);transition:transform .6s cubic-bezier(.34,1.56,.64,1)}
+.ending-bg.visible .ending-card{transform:scale(1)}
+.ending-card h2{color:#22c55e;font-size:22px;margin-bottom:22px}
+.ending-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.ending-item:last-child{border-bottom:none}.ending-item .l{color:#94a3b8;font-size:14px}.ending-item .r{color:#22c55e;font-size:15px;font-weight:700}
+.controls{position:absolute;bottom:16px;left:16px;right:16px;z-index:10;display:flex;align-items:center;gap:12px;padding:7px 16px;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.04);border-radius:28px;opacity:0;transition:opacity .3s}
+.app:hover .controls{opacity:1}.controls button{background:none;border:none;color:#d0dfff;font-size:20px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+.controls button:hover{background:rgba(255,255,255,.07)}.controls .spd{font-size:13px;font-weight:700;width:44px;color:#9aa9c9}.controls .spd:hover{color:#f6d365}
+.progress-bar{flex:1;height:4px;background:#2a3a5a;border-radius:4px;cursor:pointer;position:relative;min-width:60px}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#f6d365,#fda085);border-radius:4px;transition:width .05s linear}
+.time-label{color:#9aa9c9;font-size:12px;min-width:80px;text-align:center;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+@media(max-width:600px){body{padding:4px}.app{border-radius:8px;max-height:95vh}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+</head>
+<body><div class="app" id="app">
+<div class="stars" id="stars"></div><canvas id="mainCanvas" width="960" height="640"></canvas>
+<div id="emptyHint" style="display:none;position:absolute;inset:0;z-index:20;align-items:center;justify-content:center;color:#ef4444;font-size:18px;background:rgba(8,12,24,.9);display:none">Failed: No scenes</div>
+<div class="known-panel" id="knownPanel"><div class="known-title">■ 已知量</div></div>
+<div class="solution-panel" id="panel"></div>
+<div class="scene-overlay"><div class="scene-title" id="sceneTitle"></div></div>
+<div class="ending-bg" id="endingBg"><div class="ending-card"><h2>✅ 最终答案汇总</h2><div id="endingAnswers"></div></div></div>
+<div class="controls" id="controls"><button id="playBtn">▶</button><button id="rewindBtn">⏮</button><div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div><span class="time-label" id="timeLabel">0:00 / 2:30</span><button class="spd" id="speedBtn">1×</button></div></div>
+<script>
+(function(){
+'use strict';
+const _DEFAULTS={v0:10,h:5,g:10};
+const _IN=(typeof __INJECTED_PARAMS__!=='undefined')?__INJECTED_PARAMS__:{};
+const P={v0:_IN.v0??_DEFAULTS.v0,h:_IN.h??_DEFAULTS.h,g:_IN.g??_DEFAULTS.g};
+P.tFall=Math.sqrt(2*P.h/P.g);P.range=P.v0*P.tFall;P.vLand=Math.sqrt(P.v0*P.v0+(P.g*P.tFall)*(P.g*P.tFall));
+const Y0=120,Y1=540,SCL_Y=(Y1-Y0)/Math.max(P.h,0.1),SCL_X=Math.min(28,(880-130)/Math.max(P.range,1));
+const TOTAL=9000,FPS=60;
+
+// ── 积木库 ──
+const _goals=_IN._goals||[];const _has=(g)=>_goals.includes(g);
+const _BRICKS={
+  intro:{title:'平抛运动',dur:.06,goals:[],layers:['bg','env','object','title','known'],
+    physics:()=>({t:0,x:0,y:0,vx:P.v0,vy:0,v:P.v0})},
+  launch:{title:'小球被水平抛出',dur:.10,goals:['velocity','landing_time','horizontal_range','landing_velocity'],
+    layers:['bg','env','trajectory','object','vx_arrow','data','title'],
+    physics:(p)=>{var t=p*P.tFall*.5;return{t,x:P.v0*t,y:.5*P.g*t*t,vx:P.v0,vy:P.g*t,v:Math.sqrt(P.v0*P.v0+Math.pow(P.g*t,2))};}},
+  flight:{title:'飞行过程',dur:.20,goals:['velocity','landing_time','horizontal_range','landing_velocity'],
+    layers:['bg','env','trajectory','object','vx_arrow','vy_arrow','data','title'],
+    physics:(p)=>{var t=.5*P.tFall+p*P.tFall*.5;return{t,x:P.v0*t,y:.5*P.g*t*t,vx:P.v0,vy:P.g*t,v:Math.sqrt(P.v0*P.v0+Math.pow(P.g*t,2))};}},
+  hilight:{title:'落地分析',dur:.06,goals:['landing_time','horizontal_range','landing_velocity'],
+    layers:['bg','env','object','trajectory','hilight','title'],
+    physics:()=>({t:P.tFall,x:P.range,y:.5*P.g*P.tFall*P.tFall,vx:P.v0,vy:P.g*P.tFall,v:P.vLand})},
+  sol_time:{title:'求落地时间',dur:.07,goals:['landing_time'],layers:['bg','env','object','title','panel'],
+    physics:()=>({t:P.tFall,x:P.range,y:.5*P.g*P.tFall*P.tFall,vx:P.v0,vy:P.g*P.tFall,v:P.vLand}),
+    transIn:'由自由落体公式求时间',
+    steps:{title:'求落地时间',items:['h = ½gt² → t = √(2h/g)','t = √(2×${P.h}/${P.g}) = ${P.tFall.toFixed(2)} s','t = ${P.tFall.toFixed(2)} s'],answer:'t = ${P.tFall.toFixed(2)} s'},
+    answerItems:['t = ${P.tFall.toFixed(2)} s']},
+  sol_range:{title:'求水平射程',dur:.06,goals:['horizontal_range'],layers:['bg','env','object','trajectory','range_marker','title','panel'],
+    physics:()=>({t:P.tFall,x:P.range,y:.5*P.g*P.tFall*P.tFall,vx:P.v0,vy:P.g*P.tFall,v:P.vLand}),
+    transIn:'水平方向匀速运动',
+    steps:{title:'求水平射程',items:['x = v₀·t','x = ${P.v0} × ${P.tFall.toFixed(2)}','x = ${P.range.toFixed(2)} m'],answer:'x = ${P.range.toFixed(2)} m'},
+    answerItems:['x = ${P.range.toFixed(2)} m']},
+  sol_land_v:{title:'求落地速度',dur:.07,goals:['landing_velocity'],layers:['bg','env','object','vx_arrow','vy_arrow','v_arrow','trajectory','title','panel'],
+    physics:()=>({t:P.tFall,x:P.range,y:.5*P.g*P.tFall*P.tFall,vx:P.v0,vy:P.g*P.tFall,v:P.vLand}),
+    transIn:'速度合成',
+    steps:{title:'求落地速度',items:['vx = v₀ = ${P.v0} m/s','vy = gt = ${(P.g*P.tFall).toFixed(2)} m/s','v = √(vx²+vy²) = √(${P.v0}²+${(P.g*P.tFall).toFixed(2)}²)','v = ${P.vLand.toFixed(2)} m/s'],answer:'v = ${P.vLand.toFixed(2)} m/s'},
+    answerItems:['v = ${P.vLand.toFixed(2)} m/s']},
+  ending:{title:'答案汇总',dur:.05,goals:[],layers:['bg','ending']}
+};
+function composeScenes(goals){
+  var list=['intro','launch','flight'];
+  if(_has('landing_time')||_has('horizontal_range')||_has('landing_velocity'))list.push('hilight');
+  if(_has('landing_time'))list.push('sol_time');
+  if(_has('horizontal_range'))list.push('sol_range');
+  if(_has('landing_velocity'))list.push('sol_land_v');
+  list.push('ending');
+  return list;
+}
+function allocateTime(brickIds){
+  var td=0,i,b;for(i=0;i<brickIds.length;i++){b=_BRICKS[brickIds[i]];if(b)td+=b.dur;}
+  var c=0,ss=[];for(i=0;i<brickIds.length;i++){
+    b=_BRICKS[brickIds[i]];if(!b)continue;
+    var w=b.dur/td;ss.push({id:brickIds[i],title:b.title,s:c,e:c+w,layers:b.layers,physics:b.physics,steps:b.steps,transIn:b.transIn,answerItems:b.answerItems});
+    c+=w;
+  }return ss;
+}
+var brickIds=composeScenes(_goals);
+var SCENES=allocateTime(brickIds);
+SCENES.forEach(function(s){s.sf=Math.floor(s.s*TOTAL);s.ef=Math.floor(s.e*TOTAL);s.dur=s.ef-s.sf});
+
+// ── 物理引擎 ──
+function flightData(t){return{t,x:P.v0*t,y:.5*P.g*t*t,vx:P.v0,vy:P.g*t,v:Math.sqrt(P.v0*P.v0+Math.pow(P.g*t,2))};}
+// 预计算轨迹（用于画抛物线）
+var traj=[];for(var i=0;i<=60;i++){var tt=i/60*P.tFall;traj.push(flightData(tt));}
+
+const R={ctx:null,init(c){this.ctx=c.getContext('2d');},
+rc(x,y,w,h,r){var ctx=this.ctx;if(r>w/2)r=w/2;if(r>h/2)r=h/2;ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();},
+arrow(x1,y1,x2,y2,c,w){var ctx=this.ctx,a=Math.atan2(y2-y1,x2-x1),hl=9,ha=.5;ctx.strokeStyle=c;ctx.lineWidth=w||2;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-hl*Math.cos(a-ha),y2-hl*Math.sin(a-ha));ctx.lineTo(x2-hl*Math.cos(a+ha),y2-hl*Math.sin(a+ha));ctx.closePath();ctx.fill();},
+render(scene,ph,frame){
+  var ctx=this.ctx,layers=scene.layers||['bg'];
+  var px=130+ph.x*SCL_X,py=Y0+ph.y*SCL_Y;
+  ctx.clearRect(0,0,960,640);
+  if(layers.includes('bg')){var g=ctx.createRadialGradient(480,320,0,480,320,500);g.addColorStop(0,'#0f172a');g.addColorStop(.6,'#0a0e17');g.addColorStop(1,'#060a0f');ctx.fillStyle=g;ctx.fillRect(0,0,960,640);}
+  if(layers.includes('env')){
+    ctx.strokeStyle='rgba(71,85,105,.2)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,Y1);ctx.lineTo(960,Y1);ctx.stroke();
+    ctx.fillStyle='rgba(71,85,105,.4)';ctx.fillRect(90,Y0,60,8);ctx.fillStyle='rgba(71,85,105,.3)';ctx.fillRect(90,Y0+8,60,Y1-Y0-8);
+    ctx.save();ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(249,115,22,.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(156,Y0);ctx.lineTo(156,Y1);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(249,115,22,.6)';ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('h='+P.h+'m',162,(Y0+Y1)/2);ctx.restore();
+  }
+  if(layers.includes('trajectory')&&ph.v>.1){
+    ctx.save();ctx.strokeStyle='rgba(103,232,249,.25)';ctx.lineWidth=2;ctx.setLineDash([6,8]);ctx.beginPath();ctx.moveTo(130,Y0);
+    for(var i=0;i<traj.length;i++){var pp=traj[i];ctx.lineTo(130+pp.x*SCL_X,Y0+pp.y*SCL_Y);}ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  }
+  if(layers.includes('object')){
+    ctx.shadowColor='rgba(96,165,250,.2)';ctx.shadowBlur=10;ctx.fillStyle='#60a5fa';ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  }
+  if(layers.includes('vx_arrow')&&ph.v>.1){this.arrow(px,py,px+Math.min(ph.vx*4,70),py,'rgba(96,165,250,.7)',2);ctx.fillStyle='#60a5fa';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText('vx='+ph.vx.toFixed(1),px+Math.min(ph.vx*4,70)/2,py-6);}
+  if(layers.includes('vy_arrow')&&ph.v>.1){this.arrow(px,py,px,py+Math.min(ph.vy*4,80),'rgba(249,115,22,.7)',2);ctx.fillStyle='#f97316';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText('vy='+ph.vy.toFixed(1),px-10,py+Math.min(ph.vy*4,80)/2);}
+  if(layers.includes('data')&&ph.v>.1){
+    ctx.save();this.rc(20,20,185,130,8);ctx.fillStyle='rgba(10,15,25,.72)';ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('■ 实时数据',30,28);
+    var its=[['t',ph.t.toFixed(2)+'s','#fbbf24'],['x',ph.x.toFixed(1)+'m','#60a5fa'],['y',ph.y.toFixed(2)+'m','#f97316'],['vx',ph.vx.toFixed(1)+'m/s','#60a5fa'],['vy',ph.vy.toFixed(1)+'m/s','#f97316'],['v',ph.v.toFixed(2)+'m/s','#67e8f9']];
+    its.forEach(function(it,i){ctx.fillStyle='#64748b';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(it[0],30,50+i*17);ctx.fillStyle=it[2];ctx.textAlign='right';ctx.fillText(it[1],195,50+i*17)});ctx.restore();
+  }
+  if(layers.includes('range_marker')&&ph.v>.1){
+    ctx.save();ctx.strokeStyle='rgba(34,197,94,.6)';ctx.lineWidth=2;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.moveTo(130,Y1);ctx.lineTo(px,Y1);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(34,197,94,.85)';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('x = v₀t = '+ph.x.toFixed(1)+' m',(130+px)/2,Y1+6);ctx.restore();
+  }
+  if(layers.includes('v_arrow')&&ph.v>.1){
+    var va=Math.atan2(ph.vy,ph.vx),vl=Math.min(ph.v*4,90);
+    ctx.save();
+    this.arrow(px,py,px+vl*Math.cos(va),py+vl*Math.sin(va),'rgba(168,85,247,.7)',2.5);
+    ctx.fillStyle='#a78bfa';ctx.font='bold 12px sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText('v='+ph.v.toFixed(2)+'m/s',px+vl*Math.cos(va)+8,py+vl*Math.sin(va));
+    ctx.restore();
+  }
+  if(layers.includes('hilight')){
+    ctx.save();ctx.fillStyle='rgba(34,197,94,.85)';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=8;
+    ctx.fillText('x = v₀t = '+P.range.toFixed(1)+' m',480,550);ctx.fillText('v = √(vx²+vy²) = '+P.vLand.toFixed(2)+' m/s',480,590);ctx.shadowBlur=0;ctx.restore();
+  }
+  if(layers.includes('title')){var t=scene.title;if(t){ctx.save();ctx.font='bold 14px sans-serif';ctx.fillStyle='rgba(10,15,25,.5)';this.rc(30,24,ctx.measureText(t).width+40,34,8);ctx.fill();ctx.fillStyle='#e2e8f0';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,480,41);ctx.restore();}}
+  if(scene.transIn){var sp=(frame/TOTAL-scene.s)/(scene.e-scene.s);if(sp<.15){var a=sp<.075?sp*13.3:(1-(sp-.075)*13.3);ctx.save();ctx.globalAlpha=Math.min(a,1)*.4;ctx.fillStyle='#000';ctx.fillRect(0,0,960,640);ctx.globalAlpha=1;ctx.fillStyle='#e2e8f0';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(scene.transIn,480,320);ctx.restore();}}
+},
+}; // end R
+
+})();
+</script></body></html>

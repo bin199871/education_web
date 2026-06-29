@@ -5,543 +5,344 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🔬 物理原理可视化</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  background: #080c18;
-  color: #e0e8f0;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 16px;
-  gap: 12px;
-}
-.app { max-width: 1000px; width: 100%; }
-h1 { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-.subtitle { color: #64748b; font-size: 13px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; display: flex; justify-content: space-between; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080c18;color:#e0e8f0;font-family:"Microsoft YaHei","PingFang SC",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px}
+.app{max-width:1200px;width:100%;display:flex;flex-direction:column;gap:10px}
+.header{display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.header .sub{color:#64748b;font-size:12px}
 
-/* ── 输入面板 ── */
-#input-panel {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 4px;
-}
-#input-panel textarea {
-  width: 100%;
-  height: 80px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  color: #c8d6e5;
-  font-size: 13px;
-  padding: 10px 12px;
-  resize: vertical;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
-}
-#input-panel textarea:focus { border-color: #4FC3F7; }
-.sample-btns { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-.sample-btn {
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-  color: #94a3b8; font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
-  transition: all 0.2s;
-}
-.sample-btn:hover { background: rgba(79,195,247,0.1); border-color: #4FC3F7; color: #b0d4f1; }
-.toolbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.btn-primary, .btn-secondary {
-  border: none; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all 0.15s;
-}
-.btn-primary {
-  background: linear-gradient(135deg, #1a73e8, #0d47a1);
-  color: #fff;
-}
-.btn-primary:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(26,115,232,0.35); }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-.btn-primary.loading { background: linear-gradient(135deg, #546e7a, #37474f); }
-.btn-secondary {
-  background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);
-}
-.btn-secondary:hover { background: rgba(255,255,255,0.1); }
-.toggle-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.toggle-label { font-size: 12px; color: #78909c; cursor: pointer; }
-.toggle-switch {
-  width: 36px; height: 20px; border-radius: 10px; background: #37474f; cursor: pointer;
-  position: relative; transition: background 0.2s;
-}
-.toggle-switch.active { background: #1976d2; }
-.toggle-switch::after {
-  content: ''; position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px; border-radius: 50%; background: #78909c;
-  transition: all 0.2s;
-}
-.toggle-switch.active::after { left: 18px; background: #fff; }
-#status-msg { font-size: 12px; color: #546e7a; flex: 1; text-align: right; }
-#status-msg.error { color: #ef5350; }
-#status-msg.success { color: #66bb6a; }
-#status-msg.info { color: #4FC3F7; }
+/* ===== 左右分栏 ===== */
+.split{display:flex;gap:0;height:calc(100vh - 100px);min-height:520px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}
+.split .left{width:36%;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;background:rgba(15,23,42,.5)}
+.split .right{flex:1;display:flex;flex-direction:column;background:rgba(8,12,24,.6)}
 
-/* ── Tab 栏 ── */
-.tab-bar {
-  display: flex; gap: 0; border-bottom: 2px solid rgba(255,255,255,0.06);
-  margin-top: 2px;
-}
-.tab-btn {
-  padding: 8px 18px; border: none; background: none; color: #64748b;
-  font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent;
-  margin-bottom: -2px; transition: all 0.2s;
-}
-.tab-btn:hover { color: #94a3b8; }
-.tab-btn.active { color: #4FC3F7; border-bottom-color: #4FC3F7; font-weight: 600; }
+/* ===== 左侧输入区 ===== */
+.left-inner{padding:14px;display:flex;flex-direction:column;gap:8px;height:100%}
+.left-inner .section-label{font-size:12px;font-weight:600;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.left-inner textarea{width:100%;height:160px;border-radius:8px;border:1px solid rgba(255,255,255,.08);padding:10px 12px;font-size:13px;font-family:inherit;resize:none;outline:none;background:rgba(0,0,0,.35);color:#c8d6e5;line-height:1.6;transition:border-color .2s}
+.left-inner textarea:focus{border-color:#4FC3F7}
+.left-inner .sample-btns{display:flex;gap:4px;flex-wrap:wrap}
+.left-inner .sample-btns .s{padding:2px 10px;border-radius:10px;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#64748b;cursor:pointer;transition:all .15s}
+.left-inner .sample-btns .s:hover{background:rgba(79,195,247,.08);border-color:#4FC3F7;color:#b0d4f1}
+.left-inner .btn-group{display:flex;gap:6px}
+.left-inner .btn-group button{flex:1;padding:8px 0;border-radius:8px;border:none;font-size:13px;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.left-inner .btn-group .primary{background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff}
+.left-inner .btn-group .primary:hover{transform:scale(1.02);box-shadow:0 4px 16px rgba(26,115,232,.35)}
+.left-inner .btn-group .primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.left-inner .btn-group .secondary{background:rgba(255,255,255,.05);color:#94a3b8;border:1px solid rgba(255,255,255,.08)}
+.left-inner .btn-group .secondary:hover{background:rgba(255,255,255,.1)}
+.left-inner .status-bar{display:flex;align-items:center;gap:8px;font-size:11px;color:#64748b;padding:2px 0;flex-wrap:wrap}
+.left-inner .status-bar .dot{width:6px;height:6px;border-radius:50%;background:#64748b}
+.left-inner .status-bar .dot.blue{background:#4FC3F7}
+.left-inner .status-bar .dot.green{background:#66bb6a}
+.left-inner .status-bar .err{color:#ef5350}
+.left-inner .status-bar .ok{color:#66bb6a}
+.left-inner .params-preview{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px;color:#94a3b8;min-height:28px;overflow-y:auto;max-height:60px}
+.left-inner .params-preview .p{background:rgba(255,255,255,.04);padding:1px 8px;border-radius:4px;border:1px solid rgba(255,255,255,.06);color:#c8d6e5}
+.left-inner .toggle-row{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:6px;border-top:1px solid rgba(255,255,255,.04)}
+.left-inner .toggle-row .l{font-size:11px;color:#64748b;cursor:pointer}
+.left-inner .toggle-row .sw{width:34px;height:18px;border-radius:9px;background:#37474f;cursor:pointer;position:relative;transition:background .2s}
+.left-inner .toggle-row .sw.active{background:#1976d2}
+.left-inner .toggle-row .sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#78909c;transition:all .2s}
+.left-inner .toggle-row .sw.active::after{left:18px;background:#fff}
 
-/* ── 内容区 ── */
-.content-area {
-  margin-top: 8px;
-  min-height: 400px;
-}
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+/* ===== 右侧 Tab ===== */
+.right-inner{display:flex;flex-direction:column;height:100%}
+.right-inner .tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(15,23,42,.4)}
+.right-inner .tabs .tab{padding:10px 20px;font-size:13px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;transition:all .15s}
+.right-inner .tabs .tab:hover{color:#94a3b8}
+.right-inner .tabs .tab.active{color:#4FC3F7;border-bottom-color:#4FC3F7;font-weight:500}
+.right-inner .content-area{flex:1;overflow:hidden;position:relative}
+.right-inner .content-area .tab-content{display:none;height:100%;overflow-y:auto;padding:14px}
+.right-inner .content-area .tab-content.active{display:block}
 
-/* 文本输出 */
-.output-text {
-  max-height: 500px; overflow-y: auto;
-  background: rgba(0,0,0,0.25);
-  border-radius: 8px; padding: 14px 16px;
-  font-size: 13px; line-height: 1.7; white-space: pre-wrap;
-  font-family: "SF Mono", "Fira Code", monospace;
-  color: #c8d6e5;
-}
+/* ===== 分析结果（解题步骤） ===== */
+.analyze-content{display:flex;flex-direction:column;gap:10px}
+.step-card{border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);line-height:1.8;font-size:13px;color:#c8d6e5}
+.step-card .q-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.step-card .q-title.o{color:#f6ad55}
+.step-card .q-title.b{color:#63b3ed}
+.step-card .q-title.g{color:#68d391}
+.step-card p{margin-bottom:4px}
+.step-card .formula{color:#f6d365;font-weight:500}
+.step-card .result{color:#68d391;font-weight:600}
+.step-card .ans-box{margin-top:6px;padding:6px 10px;border-radius:6px;font-size:12px;line-height:1.6}
+.step-card .ans-box.o{background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.2);color:#f6ad55}
+.step-card .ans-box.b{background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.2);color:#63b3ed}
+.step-card .ans-box.g{background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.2);color:#68d391}
 
-/* ── 播放器（动画 Tab） ── */
-.player-wrap {
-  position: relative;
-  width: 960px; height: 640px;
-  background: #0a0e1a;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 30px rgba(0,0,0,0.5);
-  margin: 0 auto;
-}
-canvas { display: block; width: 960px; height: 640px; }
-#controls {
-  display: flex; align-items: center; gap: 12px;
-  width: 960px; padding: 8px 16px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 8px; margin: 0 auto;
-  backdrop-filter: blur(8px);
-}
-#controls button {
-  background: none; border: 1px solid rgba(255,255,255,0.15);
-  color: #d0dfff; width: 36px; height: 36px; border-radius: 50%;
-  cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.2s;
-}
-#controls button:hover { background: rgba(255,215,0,0.1); border-color: rgba(255,215,0,0.3); }
-#seek-bar {
-  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
-  background: #2a3a5a; border-radius: 2px; outline: none; cursor: pointer;
-}
-#seek-bar::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
-  background: #f6d365; cursor: pointer;
-}
-#time-display {
-  color: #9aa9c9; font-size: 13px; min-width: 100px;
-  font-variant-numeric: tabular-nums;
-}
-#segment-name {
-  color: #94a3b8; font-size: 12px; min-width: 120px; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-#physics-data {
-  display: none; align-items: center; gap: 14px;
-  margin-left: auto; font-size: 12px;
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-#physics-data.show { display: flex; }
-#physics-data .label { color: #64748b; }
-#physics-data .val.vel { color: #60a5fa; font-weight: bold; }
-#physics-data .val.acc { color: #a78bfa; font-weight: bold; }
-#physics-data .val.ek  { color: #34d399; font-weight: bold; }
-#empty-state {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  color: #475569; pointer-events: none; gap: 12px;
-}
-#empty-state .icon { font-size: 48px; opacity: 0.3; }
-#empty-state .hint { opacity: 0.5; font-size: 14px; }
-#loader {
-  position: absolute; inset: 0;
-  display: none; align-items: center; justify-content: center;
-  background: rgba(8,12,24,0.85); z-index: 10;
-}
-#loader.show { display: flex; }
-.spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.08); border-top-color: #4FC3F7; border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loader-text { margin-top: 16px; color: #94a3b8; font-size: 13px; }
-@media (max-width: 1000px) {
-  .player-wrap, #controls { width: 100%; min-width: 0; }
-  canvas { width: 100%; height: auto; }
-}
+/* ===== 动画预览 ===== */
+.player-wrap{position:relative;width:100%;height:100%;background:#0a0e1a;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.player-wrap canvas{display:block;max-width:100%;max-height:100%}
+.player-wrap #empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#475569;gap:8px;pointer-events:none}
+.player-wrap #empty-state .icon{font-size:36px;opacity:.3}
+.player-wrap #empty-state .hint{font-size:13px;opacity:.5}
+.player-wrap #loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,12,24,.85);z-index:10}
+.player-wrap #loader.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.08);border-top-color:#4FC3F7;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{margin-top:12px;color:#94a3b8;font-size:12px}
+.controls-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,.5);border-radius:8px;margin-top:6px;backdrop-filter:blur(8px)}
+.controls-bar button{background:none;border:1px solid rgba(255,255,255,.12);color:#d0dfff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+.controls-bar button:hover{background:rgba(255,215,0,.08);border-color:rgba(255,215,0,.25)}
+.controls-bar input[type=range]{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:#2a3a5a;border-radius:2px;outline:none;cursor:pointer}
+.controls-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#f6d365;cursor:pointer}
+.controls-bar .time{color:#9aa9c9;font-size:11px;min-width:85px;font-variant-numeric:tabular-nums;flex-shrink:0}
+.controls-bar .seg-name{color:#64748b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;flex-shrink:0}
+.controls-bar .phy-data{display:none;align-items:center;gap:10px;margin-left:auto;font-size:11px;flex-shrink:0}
+.controls-bar .phy-data.show{display:flex}
+.controls-bar .phy-data .l{color:#64748b}
+.controls-bar .phy-data .v{color:#60a5fa;font-weight:600}
+
+@media(max-width:900px){.split{flex-direction:column;height:auto}.split .left{width:100%;border-right:none;border-bottom:1px solid rgba(255,255,255,.06)}}
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>🔬 物理原理可视化</h1>
-  <div class="subtitle"><span>题目分析 + 混合模式动画播放（讲解 / 仿真）</span></div>
-
-  <!-- 输入面板 -->
-  <div id="input-panel">
-    <div class="sample-btns">
-      <button class="sample-btn" data-sample="slope">斜面+粗糙面+拉力</button>
-      <button class="sample-btn" data-sample="freefall">自由落体</button>
-      <button class="sample-btn" data-sample="vertical">竖直上抛</button>
-      <button class="sample-btn" data-sample="efield">⚡ 电场+单摆</button>
-    </div>
-    <textarea id="problem-input" placeholder="粘贴物理题目文本，点击「分析题目」或「生成视频」&#10;&#10;例如：一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。物块滑到斜面底端后，进入粗糙水平面 BC，动摩擦因数 μ=0.4。水平面 BC 足够长，重力加速度 g=10m/s²。求物块在水平面上滑行的最大距离。"></textarea>
-    <div class="toolbar">
-      <button class="btn-primary" id="btn-analyze">🔍 分析题目</button>
-      <button class="btn-primary" id="btn-generate">🎬 生成视频</button>
-      <button class="btn-secondary" id="btn-clear">🗑️ 清空</button>
-      <div class="toggle-wrap">
-        <span class="toggle-label">🧠 LLM 增强</span>
-        <div class="toggle-switch active" id="toggle-llm"></div>
-      </div>
-      <span id="status-msg">就绪</span>
-    </div>
+  <div class="header">
+    <h1>🔬 物理原理可视化</h1>
+    <span class="sub">题目分析 + 讲解动画</span>
   </div>
 
-  <!-- Tab 栏 -->
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="steps">📝 解题过程</button>
-    <button class="tab-btn" data-tab="analysis">📋 分析结果</button>
-    <button class="tab-btn" data-tab="storyboard">🎬 幕结构</button>
-    <button class="tab-btn" data-tab="script">📝 分镜文稿</button>
-    <button class="tab-btn" data-tab="player">🎬 动画</button>
-  </div>
-
-  <!-- 内容区 -->
-  <div class="content-area">
-    <div class="tab-content active" id="tab-steps">
-      <div class="output-text" id="output-steps">点击「分析题目」查看解题过程…</div>
-    </div>
-    <div class="tab-content" id="tab-analysis">
-      <div class="output-text" id="output-analysis">点击「分析题目」查看分析结果…</div>
-    </div>
-    <div class="tab-content" id="tab-storyboard">
-      <div class="output-text" id="output-storyboard">点击「分析题目」查看幕结构…</div>
-    </div>
-    <div class="tab-content" id="tab-script">
-      <div class="output-text" id="output-script">点击「分析题目」查看分镜文稿…</div>
-    </div>
-    <div class="tab-content" id="tab-player">
-      <div class="player-wrap">
-        <canvas id="stage"></canvas>
-        <div id="empty-state">
-          <div class="icon">🎬</div>
-          <div class="hint">点击「生成视频」生成动画</div>
+  <div class="split">
+    <!-- ===== 左侧：输入区 ===== -->
+    <div class="left">
+      <div class="left-inner">
+        <div class="section-label">📝 题目输入</div>
+        <div class="sample-btns">
+          <span class="s" data-sample="slope">斜面+粗糙面</span>
+          <span class="s" data-sample="efield">⚡ 电场+单摆</span>
+          <span class="s" data-sample="conveyor">📦 传送带</span>
+          <span class="s" data-sample="collision">💥 碰撞</span>
         </div>
-        <div id="loader">
-          <div style="text-align:center"><div class="spinner"></div><div class="loader-text">正在生成动画 ...</div></div>
+        <textarea id="problem-input" placeholder="粘贴物理题目文本…&#10;&#10;例：一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。"></textarea>
+        <div class="btn-group">
+          <button class="secondary" id="btn-analyze">🔍 分析题目</button>
+          <button class="primary" id="btn-template">🎬 生成动画</button>
+        </div>
+        <div class="status-bar" id="status-bar">
+          <span class="dot"></span><span id="status-msg">就绪</span>
+        </div>
+        <div class="params-preview" id="params-preview"></div>
+        <div class="toggle-row">
+          <span class="l">🧠 LLM 增强</span>
+          <div class="sw active" id="toggle-llm"></div>
+          <span style="margin-left:auto;font-size:11px;color:#64748b" id="template-name"></span>
         </div>
       </div>
-      <div id="controls">
-        <button id="btn-play" title="播放/暂停">▶</button>
-        <input type="range" id="seek-bar" min="0" max="100" value="0">
-        <span id="time-display">00:00 / 00:00</span>
-        <span id="segment-name"></span>
-        <span id="physics-data">
-          <span><span class="label">v=</span><span class="val vel" id="phy-vel">0</span></span>
-          <span><span class="label">a=</span><span class="val acc" id="phy-acc">0</span></span>
-          <span><span class="label">Ek=</span><span class="val ek" id="phy-ek">0</span></span>
-          <span><span class="label">Ep=</span><span class="val ek" id="phy-ep">0</span></span>
-        </span>
+    </div>
+
+    <!-- ===== 右侧：结果区 ===== -->
+    <div class="right">
+      <div class="right-inner">
+        <div class="tabs">
+          <div class="tab active" data-tab="analyze">📄 分析题目</div>
+          <div class="tab" data-tab="player">🎬 动画预览</div>
+        </div>
+        <div class="content-area">
+          <!-- Tab：分析题目 -->
+          <div class="tab-content active" id="tab-analyze">
+            <div class="analyze-content" id="analyze-content">
+              <div style="text-align:center;padding:60px 20px;color:#64748b;font-size:13px">
+                <div style="font-size:40px;margin-bottom:10px;opacity:.3">📄</div>
+                点击「分析题目」查看详细解题过程
+              </div>
+            </div>
+          </div>
+          <!-- Tab：动画预览 -->
+          <div class="tab-content" id="tab-player">
+            <div style="display:flex;flex-direction:column;height:100%">
+              <div class="player-wrap" style="flex:1;position:relative">
+                <iframe id="premium-frame" src="" style="width:100%;height:100%;border:none;display:none;border-radius:8px"></iframe>
+                <div id="empty-state">
+                  <div class="icon">🎬</div>
+                  <div class="hint">点击「生成动画」生成讲解动画</div>
+                </div>
+                <div id="loader">
+                  <div style="text-align:center"><div class="spinner"></div><div class="loader-text">正在生成动画 ...</div></div>
+                </div>
+                <button id="btn-expand" title="放大到全屏" style="position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);color:#d0dfff;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center" onclick="window.open('/premium-output.html','_blank')">⛶</button>
+              </div>
+              <div class="controls-bar">
+                <span id="premium-hint" style="color:#64748b;font-size:11px;flex:1;text-align:center;display:none">动画已加载 · 在内嵌窗口中播放</span>
+                <span class="phy-data" id="physics-data">
+                  <span><span class="l">v=</span><span class="v" id="phy-vel">0</span></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script src="components.js"></script>
-<script src="engine.js"></script>
 <script>
-(function() {
-  "use strict";
-  var inputEl = document.getElementById('problem-input');
-  var btnAnalyze = document.getElementById('btn-analyze');
-  var btnGenerate = document.getElementById('btn-generate');
-  var btnClear = document.getElementById('btn-clear');
-  var toggleLLM = document.getElementById('toggle-llm');
-  var statusEl = document.getElementById('status-msg');
-  var tabBtns = document.querySelectorAll('.tab-btn');
-  var canvas = document.getElementById('stage');
-  var loader = document.getElementById('loader');
-  var emptyState = document.getElementById('empty-state');
-  var playBtn = document.getElementById('btn-play');
-  var seekBar = document.getElementById('seek-bar');
-  var timeDisplay = document.getElementById('time-display');
-  var segName = document.getElementById('segment-name');
-  var physicsData = document.getElementById('physics-data');
-  var phyVel = document.getElementById('phy-vel');
-  var phyAcc = document.getElementById('phy-acc');
-  var phyEk = document.getElementById('phy-ek');
-  var phyEp = document.getElementById('phy-ep');
-  var outSteps = document.getElementById('output-steps');
-  var outAnalysis = document.getElementById('output-analysis');
-  var outStoryboard = document.getElementById('output-storyboard');
-  var outScript = document.getElementById('output-script');
+(function(){
+"use strict";
 
-  var engine = null;
-  var timelineData = null;
-  var llmEnabled = true;  // 默认开启
-  var analyzing = false;
-  var activeTab = 'steps';
-  var cachedAnalysis = null;
+var inputEl = document.getElementById('problem-input');
+var btnAnalyze = document.getElementById('btn-analyze');
+var btnTemplate = document.getElementById('btn-template');
+var toggleLLM = document.getElementById('toggle-llm');
+var statusMsg = document.getElementById('status-msg');
+var statusBar = document.getElementById('status-bar');
+var paramsPreview = document.getElementById('params-preview');
+var analyzeContent = document.getElementById('analyze-content');
+var tabBtns = document.querySelectorAll('.tabs .tab');
+var tabContents = document.querySelectorAll('.tab-content');
+var loader = document.getElementById('loader');
+var emptyState = document.getElementById('empty-state');
+var templateNameEl = document.getElementById('template-name');
+var llmEnabled = true;
+var analyzing = false;
 
-  // 示例题目
-  var SAMPLES = {
-    slope: '一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。物块滑到斜面底端后，进入粗糙水平面 BC，动摩擦因数 μ=0.4。水平面 BC 足够长，重力加速度 g=10m/s²。求物块在水平面上滑行的最大距离。',
-    freefall: '一质量 m=0.5kg 的小球从 h=20m 的高处自由落下，重力加速度 g=10m/s²，求小球落地时的速度。',
-    vertical: '以 v0=10m/s 的初速度竖直上抛一个质量为 0.2kg 的小球，g=10m/s²，求小球上升的最大高度。',
-    efield: '在竖直平面内存在水平向右的匀强电场，电场强度大小 E = 2.0 × 10³ N/C。一个带正电的小球质量 m = 0.1 kg，电荷量 q = 5.0 × 10⁻⁴ C，用长度 L = 1.0 m 的不可伸长的绝缘细线悬挂于 O 点。将小球从悬点 O 的正下方 A 点由静止释放，小球在电场力和重力共同作用下开始运动。细线始终处于绷直状态，重力加速度 g = 10 m/s²。求：（1）小球所受电场力的大小 F电 和重力与电场力的合力大小 F合；（2）小球运动到细线与竖直方向夹角 θ = 37° 时的速度大小 v。',
-  };
-  document.querySelectorAll('.sample-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var key = this.getAttribute('data-sample');
-      if (SAMPLES[key]) { inputEl.value = SAMPLES[key]; setStatus('已加载示例', 'info'); }
-    });
+var SAMPLES = {
+  slope: '一质量 m=2kg 的小物块从光滑斜面顶端由静止释放，斜面倾角 θ=37°，斜面长度 L=3m。物块滑到斜面底端后，进入粗糙水平面 BC，动摩擦因数 μ=0.4。重力加速度 g=10m/s²。求物块在水平面上滑行的最大距离。',
+  efield: '在竖直平面内存在水平向右的匀强电场，电场强度大小 E = 2.0 × 10³ N/C。一个带正电的小球质量 m = 0.1 kg，电荷量 q = 5.0 × 10⁻⁴ C，用长度 L = 1.0 m 的不可伸长的绝缘细线悬挂于 O 点。小球从悬点 O 的正下方 A 点由静止释放，重力加速度 g = 10 m/s²。求：（1）电场力 F电 和合力 F合；（2）θ=37° 时的速度 v；（3）细线最大拉力 Tmax。',
+  conveyor: '水平传送带以恒定速度 v₀ = 4 m/s 顺时针转动，传送带两端距离 L = 10 m。现将一个质量 m = 2 kg 的物体轻放在传送带的左端 A 点，物体与传送带间的动摩擦因数 μ = 0.4。求：（1）物体从 A 到 B 所需时间；（2）物体到达 B 端的速度；（3）物体在传送带上留下的划痕长度；（4）传送带因传送物体而多消耗的电能。',
+  collision: '在光滑水平面上，物块 A（质量 m₁=2kg）以 v₁=3m/s 向右运动，与静止的物块 B（质量 m₂=1kg，右侧连接轻弹簧 k=150N/m）发生碰撞。求：（1）碰后 A、B 的速度；（2）碰撞中的能量损失；（3）A 受到的冲量；（4）弹簧的最大压缩量。'
+};
+document.querySelectorAll('.sample-btns .s').forEach(function(b){
+  b.addEventListener('click',function(){
+    var k=this.getAttribute('data-sample');
+    if(SAMPLES[k]){inputEl.value=SAMPLES[k];setStatus('已加载示例','ok');}
   });
+});
 
-  function setStatus(msg, type) { statusEl.textContent = msg; statusEl.className = type || ''; }
-  function fmtTime(s) {
-    var m = Math.floor(s / 60), sec = s % 60;
-    return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+function setStatus(msg,type){
+  statusMsg.textContent=msg;
+  var dot=statusBar.querySelector('.dot');
+  if(type==='ok'){dot.className='dot green';statusMsg.className='ok';}
+  else if(type==='err'){dot.className='dot';statusMsg.className='err';}
+  else{dot.className='dot blue';statusMsg.className='';}
+}
+function fmtTime(s){var m=Math.floor(s/60),sc=s%60;return(m<10?'0':'')+m+':'+(sc<10?'0':'')+sc;}
+
+toggleLLM.addEventListener('click',function(){
+  llmEnabled=!llmEnabled;toggleLLM.classList.toggle('active',llmEnabled);
+});
+
+// Tab切换
+tabBtns.forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var tab=this.getAttribute('data-tab');
+    tabBtns.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab);});
+    tabContents.forEach(function(tc){tc.classList.toggle('active',tc.id==='tab-'+tab);});
+  });
+});
+
+// 显示分析结果
+function renderAnalysis(data){
+  // 模板匹配
+  var problemType = data.problem_type || '';
+  if(problemType&&problemType!=='unknown'){
+    var names={'electric_pendulum':'电场单摆','conveyor_belt':'传送带问题','collision':'动量碰撞','projectile':'平抛运动','inclined_plane':'斜面摩擦力','coulomb_force':'库仑力','light_refraction':'光的折射','atomic_energy':'能级跃迁','ac_transformer':'交流电','board_block':'板块模型','spring_oscillator':'弹簧振子','magnetic_deflection':'磁场偏转','connected_bodies':'连接体','conductor_cutting':'导体棒切割','locomotive':'机车启动','circuit_analysis':'电路分析','astronomy':'天体运动','mechanical_wave':'机械波','gas_law':'气体定律'};
+    templateNameEl.textContent='✓ 匹配：'+(names[problemType]||problemType);
+  }else{
+    templateNameEl.textContent='';
   }
-
-  // LLM 开关
-  toggleLLM.addEventListener('click', function() {
-    llmEnabled = !llmEnabled;
-    toggleLLM.classList.toggle('active', llmEnabled);
-  });
-
-  // Tab 切换
-  tabBtns.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var tab = this.getAttribute('data-tab');
-      if (tab === activeTab) return;
-      activeTab = tab;
-      tabBtns.forEach(function(b) {
-        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
-      });
-      document.querySelectorAll('.tab-content').forEach(function(tc) {
-        tc.classList.toggle('active', tc.id === 'tab-' + tab);
-      });
-      if (tab === 'player' && timelineData) {
-        // 重新渲染当前帧以适配 canvas 尺寸
-        setTimeout(function() { if (engine) engine.seek(engine.getCurrentFrame()); }, 50);
+  // 清空参数预览（新接口不再返回参数详情）
+  paramsPreview.innerHTML='';
+  // 解题过程
+  var steps=data.solution_text||'';
+  if(steps&&steps!=='{}'&&steps!=='null'&&steps.length>10){
+    // 支持两种编号格式：步骤N：或（N）
+    var html='';
+    var sections=steps.split(/\n\s*(?=步骤\d+[：:]|（\d+）)/);
+    if(sections.length<2)sections=[steps];
+    function fmtText(t){
+      // **bold** → <strong>
+      t=t.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+      // 去掉 \( 和 \) 符号
+      t=t.replace(/\\\(/g,'').replace(/\\\)/g,'');
+      // 用 。和：分行
+      t=t.replace(/。/g,'。<br>').replace(/：/g,'：<br>');
+      return t;
+    }
+    sections.forEach(function(sec,i){
+      var s=sec.trim();
+      if(s){
+        // 跳过解题方法/解题思路/共 N 步 等元信息
+        if(/^解题方法|^解题思路|^共 \d+ 步/.test(s))return;
+        var bColor=i%3===0?'#f6ad55':(i%3===1?'#63b3ed':'#68d391');
+        html+='<div class="step-card" style="border-left:3px solid '+bColor+'">'+
+          '<div style="white-space:pre-wrap;line-height:1.8;font-size:13px;color:#c8d6e5">'+fmtText(s)+'</div></div>';
       }
     });
-  });
-  function switchTab(tab) {
-    var btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
-    if (btn) btn.click();
+    analyzeContent.innerHTML=html;
+  }else{
+    analyzeContent.innerHTML='<div style="text-align:center;padding:40px;color:#64748b;font-size:13px">暂无解题步骤</div>';
   }
+}
 
-  // ─── Timer 显示更新 ───
-  function updateTimeDisplay(frame, total) {
-    var fps = (timelineData && timelineData.meta && timelineData.meta.fps) || 60;
-    timeDisplay.textContent = fmtTime(Math.floor(frame / fps)) + ' / ' + fmtTime(Math.floor(total / fps));
-  }
-  function updatePhysicsDisplay(frame, total) {
-    var seg = timelineData ? findSegment(frame, timelineData.timeline) : null;
-    if (!seg || seg.mode !== 'simulate' || !seg.physics || !seg.physics.frames) return;
-    var d = seg.physics.frames[frame - seg.startFrame];
-    if (!d) return;
-    if (phyVel) phyVel.textContent = d.v != null ? d.v.toFixed(2) + 'm/s' : '0';
-    if (phyAcc) phyAcc.textContent = d.a != null ? d.a.toFixed(2) + 'm/s²' : '0';
-    if (phyEk) phyEk.textContent = d.Ek != null ? d.Ek.toFixed(1) + 'J' : '0';
-    if (phyEp) phyEp.textContent = d.Ep != null ? d.Ep.toFixed(1) + 'J' : '0';
-  }
+// 分析题目
+function analyzeProblem(){
+  var text=inputEl.value.trim();
+  if(!text){setStatus('请粘贴题目文本','err');return;}
+  if(analyzing)return;
+  analyzing=true;btnAnalyze.disabled=true;btnAnalyze.textContent='⏳ 分析中...';
+  setStatus('正在分析题目...','');
+  fetch('/api/analyze/storyboard',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:text,useLLM:llmEnabled})
+  })
+  .then(function(r){if(!r.ok)throw new Error('API返回'+r.status);return r.json();})
+  .then(function(resp){
+    if(!resp.success)throw new Error(resp.error||'分析失败');
+    renderAnalysis(resp.data||resp);
+    setStatus('分析完成','ok');
+  })
+  .catch(function(err){setStatus('❌ '+err.message,'err');console.error(err);})
+  .finally(function(){analyzing=false;btnAnalyze.disabled=false;btnAnalyze.textContent='🔍 分析题目';});
+}
 
-  // ─── 播放器控制 ───
-  function startPlayer(timeline) {
-    if (!timeline || !timeline.timeline) return;
-    if (engine) { engine.destroy(); engine = null; }
-    timelineData = timeline;
-    var meta = timeline.meta || {};
-    if (meta.width) canvas.width = meta.width;
-    if (meta.height) canvas.height = meta.height;
-    engine = startEngine('stage', timeline, {
-      onFrameUpdate: function(frame, total) {
-        seekBar.value = total > 0 ? Math.round(frame / (total - 1) * 100) : 0;
-        updateTimeDisplay(frame, total);
-        updatePhysicsDisplay(frame, total);
-      },
-      onSegmentChange: function(seg, prev) {
-        if (segName && seg) {
-          var a = seg.id ? seg.id.split('-')[0] : '';
-          segName.textContent = (a ? '第' + a + '幕 · ' : '') + seg.name;
-        }
-        if (physicsData) physicsData.classList.toggle('show', seg && seg.mode === 'simulate');
-      },
-      onComplete: function() { playBtn.textContent = '↺'; }
-    });
-    engine.resume();
-    playBtn.textContent = '⏸';
-  }
-
-  playBtn.addEventListener('click', function() {
-    if (!engine) return;
-    var s = engine.getState();
-    if (s.isComplete) { engine.seek(0); engine.resume(); this.textContent = '⏸'; }
-    else if (s.isPaused) { engine.resume(); this.textContent = '⏸'; }
-    else { engine.pause(); this.textContent = '▶'; }
-  });
-
-  var isSeeking = false;
-  seekBar.addEventListener('mousedown', function() { isSeeking = true; });
-  seekBar.addEventListener('touchstart', function() { isSeeking = true; });
-  seekBar.addEventListener('input', function() {
-    if (isSeeking && engine && timelineData) {
-      var total = timelineData.meta.totalFrames || 1;
-      var target = Math.round(this.value / 100 * total);
-      engine.seek(target);
-      updateTimeDisplay(target, total);
-      updatePhysicsDisplay(target, total);
+// 生成动画
+function generateTemplate(){
+  var text=inputEl.value.trim();
+  if(!text){setStatus('请粘贴题目文本','err');return;}
+  btnTemplate.disabled=true;btnTemplate.textContent='⏳ 生成中...';
+  setStatus('正在生成讲解动画...','');
+  // 显示加载动画（在预览 tab）
+  loader.classList.add('show');
+  emptyState.style.display='none';
+  document.getElementById('premium-frame').style.display='none';
+  document.getElementById('btn-expand').style.display='none';
+  // 切换到预览 tab
+  tabBtns.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')==='player');});
+  tabContents.forEach(function(tc){tc.classList.toggle('active',tc.id==='tab-player');});
+  fetch('/api/template/generate',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:text,useLLM:llmEnabled})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    loader.classList.remove('show');
+    if(data.fallback){setStatus('⚠️ 未匹配模板','');emptyState.style.display='';return;}
+    if(data.success){
+      var iframe=document.getElementById('premium-frame');
+      iframe.src='/premium-output.html?_t='+Date.now();
+      iframe.style.display='block';
+      emptyState.style.display='none';
+      document.getElementById('btn-expand').style.display='flex';
+      document.getElementById('premium-hint').style.display='block';
+      setStatus('动画已生成','ok');
+    }else{
+      setStatus('❌ '+(data.message||'生成失败'),'err');
+      emptyState.style.display='';
     }
-  });
-  seekBar.addEventListener('change', function() { isSeeking = false; });
+  })
+  .catch(function(err){setStatus('❌ '+err.message,'err');loader.classList.remove('show');emptyState.style.display='';})
+  .finally(function(){btnTemplate.disabled=false;btnTemplate.textContent='🎬 生成动画';});
+}
 
-  document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'TEXTAREA') return;
-    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
-  });
-
-  // ─── 显示分析结果 ───
-  function showAnalysis(result) {
-    var data = result.data;
-    // 解题过程
-    if (data.layer2_5_text) {
-      outSteps.textContent = data.layer2_5_text;
-    } else {
-      outSteps.textContent = JSON.stringify(data.layer2_5 || {}, null, 2);
-    }
-    // 分析结果 (Layer 1)
-    outAnalysis.textContent = JSON.stringify(data.layer1 || {}, null, 2);
-    // 幕结构 (Layer 2)
-    outStoryboard.textContent = JSON.stringify(data.layer2 || {}, null, 2);
-    // 分镜文稿 (Layer 3)
-    outScript.textContent = data.layer3_text || JSON.stringify(data.layer3 || {}, null, 2);
-  }
-
-  // ─── 分析题目 ───
-  function analyzeProblem() {
-    var text = inputEl.value.trim();
-    if (!text) { setStatus('请粘贴题目文本', 'error'); return; }
-    if (analyzing) return;
-    analyzing = true;
-    btnAnalyze.disabled = true;
-    btnAnalyze.textContent = '⏳ 分析中...';
-    setStatus('正在分析题目 ...', 'info');
-    btnGenerate.disabled = true;
-
-    fetch('/api/analyze/storyboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, useLLM: llmEnabled })
-    })
-    .then(function(r) { if (!r.ok) throw new Error('API 返回 ' + r.status); return r.json(); })
-    .then(function(resp) {
-      if (!resp.success) throw new Error(resp.error || '分析失败');
-      cachedAnalysis = resp;
-      showAnalysis(resp);
-      var mode = resp.data.timeline_mode || 'explain_only';
-      setStatus('✅ 分析完成 — ' + (mode === 'hybrid' ? '可生成视频' : '讲解模式'), 'success');
-    })
-    .catch(function(err) {
-      setStatus('❌ ' + err.message, 'error');
-      console.error(err);
-    })
-    .finally(function() {
-      analyzing = false;
-      btnAnalyze.disabled = false;
-      btnAnalyze.textContent = '🔍 分析题目';
-      btnGenerate.disabled = false;
-    });
-  }
-
-  // ─── 生成视频 ───
-  function generateVideo() {
-    var text = inputEl.value.trim();
-    if (!text) { setStatus('请粘贴题目文本', 'error'); return; }
-    loader.classList.add('show');
-    emptyState.style.display = 'none';
-    setStatus('正在生成动画 ...', 'info');
-    if (engine) { engine.destroy(); engine = null; }
-    timelineData = null;
-    btnGenerate.disabled = true;
-
-    // 如果没有做分析，先调 API；否则 timeline.json 可能已经是旧的
-    fetch('/api/analyze/storyboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, useLLM: llmEnabled })
-    })
-    .then(function(r) { if (!r.ok) throw new Error('API 返回 ' + r.status); return r.json(); })
-    .then(function(resp) {
-      if (!resp.success) throw new Error(resp.error || '生成失败');
-      if (!cachedAnalysis) { cachedAnalysis = resp; showAnalysis(resp); }
-      setStatus('动画已生成，加载中...', 'info');
-      return fetch('/timeline.json?_t=' + Date.now());
-    })
-    .then(function(r) { if (!r.ok) throw new Error('无法加载 timeline.json'); return r.json(); })
-    .then(function(data) {
-      startPlayer(data);
-      switchTab('player');
-      var modeLabel = data.meta.mode === 'hybrid' ? '混合模式' : '讲解模式';
-      setStatus('✅ 生成成功 — ' + modeLabel + ' | ' + data.meta.totalFrames + ' 帧', 'success');
-    })
-    .catch(function(err) {
-      setStatus('❌ ' + err.message, 'error');
-      console.error(err);
-      emptyState.style.display = 'flex';
-    })
-    .finally(function() {
-      btnGenerate.disabled = false;
-      loader.classList.remove('show');
-    });
-  }
-
-  btnAnalyze.addEventListener('click', analyzeProblem);
-  btnGenerate.addEventListener('click', generateVideo);
-  btnClear.addEventListener('click', function() {
-    inputEl.value = '';
-    if (engine) { engine.destroy(); engine = null; timelineData = null; }
-    ['output-steps', 'output-analysis', 'output-storyboard', 'output-script'].forEach(function(id) {
-      document.getElementById(id).textContent = '清空';
-    });
-    setStatus('已清空', '');
-    emptyState.style.display = 'flex';
-  });
-  inputEl.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); analyzeProblem(); }
-  });
-
-  // ─── 快捷键 ───
-  document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); analyzeProblem(); }
-    if (e.key === 'g' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); generateVideo(); }
-  });
-
-  // ─── 不自动加载旧的 timeline.json ───
-  // 用户必须主动点击「生成视频」来生成属于当前题目的动画
-  // 防止硬盘残留的旧 timeline.json 污染播放器
+btnAnalyze.addEventListener('click',analyzeProblem);
+btnTemplate.addEventListener('click',generateTemplate);
+inputEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();analyzeProblem();}
+});
 })();
 </script>
 </body>
