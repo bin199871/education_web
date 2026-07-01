@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>var __INJECTED_PARAMS__ = {"title": "电单摆", "_goals": ["force_analysis", "resultant_force", "velocity", "tension_max"], "m": 0.1, "q": 0.0005, "E": 2000, "L": 1.0, "g": 10, "theta_target": 37};</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电单摆 · 电场中带电单摆 · 讲解动画</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<style>
+/* ===== 全局重置 ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b0e1a;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Microsoft YaHei','PingFang SC',sans-serif;padding:10px}
+.app{position:relative;width:100%;max-width:960px;aspect-ratio:3/2;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+@media(max-width:600px){body{padding:4px}.app{border-radius:8px;max-height:95vh}}
+
+/* ===== 星星 ===== */
+.stars{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) infinite alternate}
+@keyframes twinkle{0%{opacity:.1}100%{opacity:.8}}
+
+/* ===== Canvas ===== */
+#mainCanvas{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
+
+/* ===== 解题面板 ===== */
+.solution-panel{position:absolute;right:0;top:50%;transform:translate(100%,-50%);z-index:4;width:270px;max-height:78%;padding:22px 18px;background:rgba(8,12,22,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-left:1px solid rgba(255,255,255,.06);border-radius:14px 0 0 14px;overflow-y:auto;transition:transform .55s cubic-bezier(.23,1,.32,1)}
+.solution-panel.visible{transform:translate(0,-50%)}
+.panel-title{font-size:14px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06)}
+.step-row{opacity:0;transform:translateX(18px);transition:opacity .4s ease,transform .4s ease;margin-bottom:7px;font-size:13px;line-height:1.6;color:#cbd5e1;display:flex;align-items:flex-start;gap:6px}
+.step-row.visible{opacity:1;transform:translateX(0)}
+.step-badge{display:inline-flex;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.07);align-items:center;justify-content:center;font-size:10px;color:#94a3b8;flex-shrink:0;margin-top:2px}
+.answer-box{margin-top:12px;padding:10px 14px;border:1px solid rgba(34,197,94,.25);border-radius:8px;opacity:0;transition:opacity .5s ease,transform .5s cubic-bezier(.34,1.56,.64,1);transform:scale(.9);text-align:center}
+.answer-box.visible{opacity:1;transform:scale(1);background:rgba(34,197,94,.08)}
+.answer-text{color:#22c55e;font-size:15px;font-weight:700}
+.color-electric{color:#ef4444}.color-gravity{color:#60a5fa}.color-resultant{color:#fb923c}.color-tension{color:#d8b4fe}.color-velocity{color:#67e8f9}.color-result{color:#22c55e}
+.formula{font-family:'Cambria Math','Times New Roman',serif}
+
+/* ===== 场景标题 ===== */
+.scene-overlay{position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:3;text-align:center;pointer-events:none}
+.scene-title{color:#e2e8f0;font-size:15px;font-weight:700;background:rgba(0,0,0,.5);padding:5px 18px;border-radius:20px;backdrop-filter:blur(4px);opacity:0;transition:opacity .5s ease;white-space:nowrap}
+.scene-title.visible{opacity:1}
+.scene-sub{color:#94a3b8;font-size:13px;margin-top:5px;opacity:0;transition:opacity .7s ease}
+.scene-sub.visible{opacity:1}
+
+/* ===== 已知量面板 ===== */
+.known-panel{position:absolute;top:60px;left:20px;z-index:2;pointer-events:none;background:rgba(10,15,25,.75);border-radius:10px;padding:14px 16px;opacity:0;transition:opacity .6s ease}
+.known-panel.visible{opacity:1}
+.known-title{color:#94a3b8;font-size:11px;font-weight:700;margin-bottom:6px}
+.known-row{color:#cbd5e1;font-size:12px;line-height:1.8}
+
+/* ===== 几何标注 ===== */
+.geom-label{position:absolute;z-index:2;pointer-events:none;opacity:0;transition:opacity .4s ease;display:flex;align-items:center}
+.geom-label.visible{opacity:1}
+.geom-label .line{position:absolute;background:currentColor;border-radius:1px}
+.geom-label.v-line .line{width:2px;height:var(--len,100px);left:0;top:0}
+.geom-label.h-line .line{height:2px;width:var(--len,100px)}
+.geom-label .text{font-size:13px;font-weight:600;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.geom-label .text-sm{font-size:12px;font-weight:400;opacity:.85}
+.geom-label.highlight{color:#22c55e}
+.geom-label.highlight .text{font-size:14px;font-weight:700}
+
+/* ===== 答案汇总 ===== */
+.ending-bg{position:absolute;inset:0;z-index:5;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity .8s ease;pointer-events:none}
+.ending-bg.visible{opacity:1;pointer-events:auto}
+.ending-card{background:rgba(10,15,25,.94);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:30px 40px;width:460px;text-align:center;transform:scale(.92);transition:transform .6s cubic-bezier(.34,1.56,.64,1)}
+.ending-bg.visible .ending-card{transform:scale(1)}
+.ending-card h2{color:#22c55e;font-size:22px;margin-bottom:22px}
+.ending-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.ending-item:last-child{border-bottom:none}
+.ending-item .l{color:#94a3b8;font-size:15px}
+.ending-item .r{color:#22c55e;font-size:16px;font-weight:700}
+
+/* ===== 控制栏 ===== */
+.controls{position:absolute;bottom:16px;left:16px;right:16px;z-index:10;display:flex;align-items:center;gap:12px;padding:7px 16px;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.04);border-radius:28px;opacity:0;transition:opacity .3s}
+.app:hover .controls{opacity:1}
+.controls button{background:none;border:none;color:#d0dfff;font-size:20px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+.controls button:hover{background:rgba(255,255,255,.07)}
+.controls .spd{font-size:13px;font-weight:700;width:44px;color:#9aa9c9}
+.controls .spd:hover{color:#f6d365}
+.progress-bar{flex:1;height:4px;background:#2a3a5a;border-radius:4px;cursor:pointer;position:relative;min-width:60px}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#f6d365,#fda085);border-radius:4px;transition:width .05s linear}
+.time-label{color:#9aa9c9;font-size:12px;min-width:80px;text-align:center;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* ===== 速度标注 ===== */
+.v-label{position:absolute;z-index:2;pointer-events:none;opacity:0;transition:opacity .3s}
+.v-label.visible{opacity:1}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- 星星 -->
+  <div class="stars" id="stars"></div>
+
+  <!-- Canvas -->
+  <canvas id="mainCanvas" width="960" height="640"></canvas>
+  <div id="emptyHint" style="display:none;position:absolute;inset:0;z-index:20;align-items:center;justify-content:center;color:#ef4444;font-size:18px;background:rgba(8,12,24,.9)">
+    无法加载动画：场景数据为空
+  </div>
+
+  <!-- 已知量面板（JS 动态填充） -->
+  <div class="known-panel" id="knownPanel">
+    <div class="known-title">■ 已知量</div>
+  </div>
+
+  <!-- 解题面板 -->
+  <div class="solution-panel" id="panel">
+  </div>
+  
+
+  <!-- 场景标题 -->
+  <div class="scene-overlay"><div class="scene-title" id="sceneTitle"></div></div>
+
+  <!-- 答案汇总（动态填充） -->
+  <div class="ending-bg" id="endingBg">
+    <div class="ending-card">
+      <h2>✅ 最终答案汇总</h2>
+      <div id="endingAnswers"></div>
+    </div>
+  </div>
+
+  <!-- 控制栏 -->
+  <div class="controls" id="controls">
+    <button id="playBtn">▶</button>
+    <button id="rewindBtn">⏮</button>
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+    <span class="time-label" id="timeLabel">0:00 / 3:00</span>
+    <button class="spd" id="speedBtn">1×</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ================================================================
+//  0. 全局错误捕获
+// ================================================================
+window.onerror = function(msg,url,l,c,e){
+  console.error('[FATAL]',msg,'at',l+':'+c);
+  var h=document.getElementById('emptyHint');
+  if(h){h.style.display='flex';h.textContent='⚠ '+msg+' (line '+l+')';}
+};
+
+// ================================================================
+//  1. 配置常量（支持 __INJECTED_PARAMS__ 覆盖）
+// ================================================================
+const _DEFAULTS = {m:0.1, q:5e-4, E:2000, g:10, L:1};
+const _IN = (typeof __INJECTED_PARAMS__ !== 'undefined') ? __INJECTED_PARAMS__ : {};
+const PHYS = {
+  m: _IN.m ?? _DEFAULTS.m,
+  q: _IN.q ?? _DEFAULTS.q,
+  E: _IN.E ?? _DEFAULTS.E,
+  g: _IN.g ?? _DEFAULTS.g,
+  L: _IN.L ?? _DEFAULTS.L,
+  get Fq(){return this.q*this.E},
+  get G(){return this.m*this.g},
+  get Fr(){return Math.sqrt(this.Fq*this.Fq+this.G*this.G)},
+  get alpha(){return Math.atan2(this.Fq,this.G)},
+  sin37:.6, cos37:.8,
+  deg:Math.PI/180
+};
+
+// 从参数读取初始角度和目标角度（用于场景编排）— 必须在 _V 之前定义
+const THETA0_DEG = _IN.theta0 !== undefined ? _IN.theta0 : 90;
+const THETA0 = THETA0_DEG * PHYS.deg;
+const THETA_TARGET_DEG = _IN.theta_target !== undefined ? _IN.theta_target : 37;
+
+const _QC = Math.min(_IN._question_count || 3, 4);  // 题目问数（最多4）
+
+// 计算所有步骤中需要显示的数值
+const _fmtSci=function(v){if(v>=1e3||v<=1e-3){var e=Math.floor(Math.log10(Math.abs(v)));return (v/Math.pow(10,e)).toFixed(1)+'×10^'+e;}return String(v);};
+const _V = {
+  qStr: _fmtSci(PHYS.q),
+  EStr: _fmtSci(PHYS.E),
+  FqStr: PHYS.Fq.toFixed(2),
+  GStr: PHYS.G.toFixed(2),
+  FrStr: PHYS.Fr.toFixed(2),
+  alphaStr: (PHYS.alpha*180/Math.PI).toFixed(1),
+  mStr: String(PHYS.m),
+  gStr: String(PHYS.g),
+  LStr: String(PHYS.L),
+  // 目标角度时的值
+  hT: PHYS.L*(1-Math.cos(THETA_TARGET_DEG*PHYS.deg)),
+  xT: PHYS.L*Math.sin(THETA_TARGET_DEG*PHYS.deg),
+  WT: PHYS.Fq*PHYS.L*Math.sin(THETA_TARGET_DEG*PHYS.deg) - PHYS.G*PHYS.L*(1-Math.cos(THETA_TARGET_DEG*PHYS.deg)),
+  get vT(){return Math.sqrt(2*Math.max(this.WT,0)/PHYS.m)},
+  // 最低点（从 THETA0 释放）的值
+  W0: PHYS.Fq*PHYS.L*Math.sin(THETA0) + PHYS.G*PHYS.L*(1-Math.cos(THETA0)),
+  get v0(){return Math.sqrt(2*Math.max(this.W0,0)/PHYS.m)},
+  get Tmax0(){return PHYS.G + PHYS.m*this.v0*this.v0/PHYS.L},
+};
+_V.hTStr=_V.hT.toFixed(2); _V.xTStr=_V.xT.toFixed(2);
+_V.WTStr=_V.WT.toFixed(2); _V.vTStr=_V.vT.toFixed(2);
+_V.v0Str=_V.v0.toFixed(2); _V.Tmax0Str=_V.Tmax0.toFixed(2);
+
+const CV = {W:960,H:640,CX:480,CY:130,SCALE:300,BR:18,ALEN:52};
+const TOTAL = 10800, FPS = 60;
+
+// ================================================================
+//  场景积木库（Scene Bricks）
+// ================================================================
+const _GOALS = _IN._goals || [];
+const _has = (g)=>_GOALS.includes(g);
+
+const _COMMON = {
+  intro: { title:'题目介绍', dur:.06, goals:[], layers:['bg','efield','env','pend','title','known'],
+    physics:()=>swing1(0) },
+  forces: { title:'受力分析', dur:.08, goals:['force_analysis','resultant_force'],
+    layers:['bg','efield','env','pend','forces_full','title'], physics:()=>swing1(0) },
+  ending:{ title:'答案汇总', dur:.08, goals:[], layers:['bg','ending'] }
+};
+
+const _BRICKS = Object.assign({}, _COMMON, {
+  sol_force:{ title:'第(1)问：求电场力和合力', dur:.10,
+    goals:['force_analysis','resultant_force'],
+    layers:['bg','efield','env','pend','forces_full','title','panel'],
+    physics:()=>swing1(0),
+    transIn:'下面分析小球受力情况',
+    steps:{ title:'第(1)问：求电场力和合力', items:[
+      'F电 = qE = ${_V.qStr} × ${_V.EStr} = ${_V.FqStr} N',
+      'G = mg = ${_V.mStr} × ${_V.gStr} = ${_V.GStr} N',
+      'F电与G垂直',
+      'F合 = √(F电² + G²) = √(${_V.FqStr}²+${_V.GStr}²) = ${_V.FrStr} N',
+      '方向: tanα = F电/G = ${_V.FqStr}/${_V.GStr} → α = ${_V.alphaStr}°'
+    ], answer:'F电 = ${_V.FqStr} N，F合 = ${_V.FrStr} N，α = ${_V.alphaStr}°' },
+    answerItems:['F电 = ${_V.FqStr} N','F合 = ${_V.FrStr} N'] },
+
+  swing_to_angle:{ title:'摆动过程', dur:.08,
+    goals:['velocity'], layers:['bg','efield','env','pend','angle','v_arrow','energy','title'],
+    physics:(p)=>swing1(p*THETA_TARGET_DEG*PHYS.deg),
+    startPose: ()=>swing1(0) },
+
+  sol_velocity:{ title:'求速度', dur:.07,
+    goals:['velocity'], layers:['bg','efield','env','pend','angle','v_arrow','title','panel'],
+    physics:()=>swing1(THETA_TARGET_DEG*PHYS.deg),
+    transIn:'由动能定理求速度',
+    steps:{ title:'求速度', items:[
+      'h = L(1-cosθ) = ${_V.hTStr} m',
+      'x = L·sinθ = ${_V.xTStr} m',
+      'W合 = F电·x − G·h = ${_V.WTStr} J',
+      '½mv² = ${_V.WTStr} → v² = ${(2*_V.WT/PHYS.m).toFixed(2)}',
+      'v = ${_V.vTStr} m/s'
+    ], answer:'v = ${_V.vTStr} m/s' } },
+
+  swing_to_bottom:{ title:'摆到最低点', dur:.10,
+    goals:['velocity_bottom','energy_change','tension_max'],
+    layers:['bg','efield','env','pend','v_arrow','energy','title'],
+    physics:(p)=>swing2(p,THETA0), startPose:()=>swing2(0,THETA0) },
+
+  sol_bottom_velocity:{ title:'求最低点速度', dur:.07,
+    goals:['velocity_bottom'], layers:['bg','efield','env','pend','v_arrow','energy','title','panel'],
+    physics:()=>swing2(1,THETA0),
+    transIn:'小球摆到最低点时速度最大',
+    steps:{ title:'第(2)问：求最低点速度 vA', items:[
+      '从 θ₀=${THETA0_DEG}° 到最低点应用动能定理：',
+      'h₀ = L(1-cos${THETA0_DEG}°) = ${(PHYS.L*(1-Math.cos(THETA0))).toFixed(3)} m',
+      'x₀ = L·sin${THETA0_DEG}° = ${(PHYS.L*Math.sin(THETA0)).toFixed(3)} m',
+      'W合 = F电·x₀ + G·h₀ = ${_V.W0.toFixed(2)} J',
+      '½mvA² = ${_V.W0.toFixed(2)} J',
+      'vA = √(2×${_V.W0.toFixed(2)}/${PHYS.m}) = ${_V.v0Str} m/s'
+    ], answer:'vA = ${_V.v0Str} m/s' },
+    answerItems:['vA = ${_V.v0Str} m/s'] },
+
+  sol_energy:{ title:'求能量变化', dur:.07,
+    goals:['energy_change'], layers:['bg','title','panel'],
+    physics:()=>swing2(1,THETA0),
+    transIn:'分析能量转化情况',
+    steps:{ title:'第(3)问：求能量变化', items:[
+      '电势能变化：ΔEp电 = −W电 = −F电·x₀',
+      '= −${_V.FqStr}×${(PHYS.L*Math.sin(THETA0)).toFixed(3)} = ${(-PHYS.Fq*PHYS.L*Math.sin(THETA0)).toFixed(3)} J',
+      '重力势能变化：ΔEp重 = −W重 = −G·h₀',
+      '= −${_V.GStr}×${(PHYS.L*(1-Math.cos(THETA0))).toFixed(3)} = ${(-PHYS.G*PHYS.L*(1-Math.cos(THETA0))).toFixed(3)} J'
+    ], answer:'ΔEp电 = ${(-PHYS.Fq*PHYS.L*Math.sin(THETA0)).toFixed(3)} J，ΔEp重 = ${(-PHYS.G*PHYS.L*(1-Math.cos(THETA0))).toFixed(3)} J' },
+    answerItems:['ΔEp电 = ${(-PHYS.Fq*PHYS.L*Math.sin(THETA0)).toFixed(3)} J','ΔEp重 = ${(-PHYS.G*PHYS.L*(1-Math.cos(THETA0))).toFixed(3)} J'] },
+
+  swing_to_bottom_2:{ title:'摆到最低点', dur:.08,
+    goals:['tension_max'], layers:['bg','efield','env','pend','v_arrow','energy','title'],
+    physics:(p)=>swing2(p,THETA0), startPose:()=>swing2(0,THETA0) },
+
+  sol_tension:{ title:'求最大拉力', dur:.07,
+    goals:['tension_max'], layers:['bg','efield','env','pend','tension','title','panel'],
+    physics:()=>swing2(1,THETA0),
+    transIn:'最低点时拉力最大',
+    steps:{ title:'第(4)问：求最大拉力', items:[
+      '在最低点 A 应用牛顿第二定律：',
+      'T − G = mvA²/L',
+      'Tmax = G + mvA²/L',
+      '= ${_V.GStr} + ${PHYS.m}×${_V.v0Str}²/${_V.LStr}',
+      '= ${_V.Tmax0Str} N'
+    ], answer:'Tmax = ${_V.Tmax0Str} N' },
+    answerItems:['Tmax = ${_V.Tmax0Str} N'] }
+});
+
+// ================================================================
+//  编排引擎
+// ================================================================
+function composeScenes(goals){
+  var list=[];
+  list.push('intro','forces');
+  if(_has('force_analysis')||_has('resultant_force'))list.push('sol_force');
+  if(_has('velocity_bottom')){list.push('swing_to_bottom','sol_bottom_velocity');}
+  else if(_has('velocity')){list.push('swing_to_angle','sol_velocity');}
+  if(_has('energy_change'))list.push('sol_energy');
+  if(_has('tension_max')){list.push('swing_to_bottom_2','sol_tension');}
+  list.push('ending');
+  return list;
+}
+
+function allocateTime(brickIds){
+  var totalDur=0, i, b;
+  for(i=0;i<brickIds.length;i++){b=_BRICKS[brickIds[i]];if(b)totalDur+=b.dur;}
+  var cursor=0, scenes=[];
+  for(i=0;i<brickIds.length;i++){
+    b=_BRICKS[brickIds[i]]; if(!b)continue;
+    var w=b.dur/totalDur;
+    scenes.push({id:brickIds[i], title:b.title, s:cursor, e:cursor+w,
+      layers:b.layers, physics:b.physics, steps:b.steps,
+      transIn:b.transIn, answerItems:b.answerItems,
+      startPose:b.startPose, _hasSlow:!!b.startPose});
+    cursor+=w;
+  }
+  return scenes;
+}
+
+// 根据问题目标编排场景
+const SCENES = allocateTime(composeScenes(_GOALS));
+SCENES.forEach(s=>{s.sf=Math.floor(s.s*TOTAL);s.ef=Math.floor(s.e*TOTAL);s.dur=s.ef-s.sf});
+
+// ================================================================
+//  2. 物理引擎
+// ================================================================
+function swing1(theta){  // 从0°释放, 0°→90°
+  const t=theta,st=Math.sin(t),ct=Math.cos(t);
+  const h=PHYS.L*(1-ct), x=PHYS.L*st;
+  const K=PHYS.Fq*PHYS.L*st-PHYS.G*PHYS.L*(1-ct);
+  const Ek=Math.max(K,0), v=Math.sqrt(2*Ek/PHYS.m);
+  const T=PHYS.G*ct+PHYS.Fq*st+PHYS.m*v*v/PHYS.L;
+  return {theta:t,deg:t/PHYS.deg,h,x,v,Ek,Ep_g:PHYS.G*h,Ep_e:-PHYS.Fq*x,Etot:Ek+PHYS.G*h-PHYS.Fq*x,T,t_sin:st,t_cos:ct};
+}
+function swing2(prog, theta0_rad){  // prog: 0→1, 从 -θ₀ 摆向 0 (最低点)
+  const t0=theta0_rad||THETA0;
+  const t=-t0+prog*t0;  // -theta0 → 0
+  const st=Math.sin(t), ct=Math.cos(t);
+  const h=PHYS.L*(1-ct), x=PHYS.L*st;
+  // 从θ=-θ₀释放: E_total = G*L*(1-cosθ₀) + Fq*L*sinθ₀
+  const E_init = PHYS.G*PHYS.L*(1-Math.cos(t0)) + PHYS.Fq*PHYS.L*Math.sin(t0);
+  const K=E_init-PHYS.G*h+PHYS.Fq*x;
+  const Ek=Math.max(K,0), v=Math.sqrt(2*Ek/PHYS.m);
+  const T=PHYS.G*ct+PHYS.Fq*st+PHYS.m*v*v/PHYS.L;
+  return {theta:t,deg:t/PHYS.deg,h,x,v,Ek,Ep_g:PHYS.G*h,Ep_e:-PHYS.Fq*x,Etot:E_init,T,t_sin:st,t_cos:ct};
+}
+// getPhysics 已迁移到 BRICKS.physics 中
+
+// ================================================================
+//  3. 帧控制器
+// ================================================================
+
+// ================================================================
+//  4. 场景调度
+// ================================================================
+
+// ================================================================
+//  5. Canvas 渲染器
+// ================================================================
+const R={
+  ctx:null,canvas:null,framesSinceStart:0,
+  init(c){this.canvas=c;this.ctx=c.getContext('2d');},
+  render(scene,p,frame){
+    this.framesSinceStart = frame||FC.frame;
+    const ctx=this.ctx,{bx,by}=this.ballXY(p.theta);
+    const layers=scene.layers||['bg'];
+    ctx.clearRect(0,0,CV.W,CV.H);
+    if(layers.includes('bg'))this.drawBg();
+    if(layers.includes('efield'))this.drawEField(scene.id,by);
+    if(layers.includes('env'))this.drawEnv();
+    if(layers.includes('pend'))this.drawPend(bx,by,p.theta);
+    if(layers.includes('forces_full'))this.drawForcesFull(bx,by);
+    if(layers.includes('forces_simp'))this.drawForcesSimp(bx,by,p);
+    if(layers.includes('v_arrow')&&p.v>.05)this.drawVArrow(bx,by,p.theta,p.v);
+    if(layers.includes('energy'))this.drawEnergy(p);
+    if(layers.includes('angle')&&Math.abs(p.theta)>.02)this.drawAngle(p.theta);
+    if(layers.includes('tension')&&p.T>0)this.drawTensionArrow(bx,by,p.T);
+    if(layers.includes('title'))this.drawTitle(scene.title||'');
+    if(layers.includes('known'))this.drawKnown();
+    // 过渡文字
+    if(scene.transIn){
+      var prog=SD.prog(frame,scene.id);
+      if(prog<.15)this.drawTransText(scene.transIn,prog/.15);
+    }
+  },
+  ballXY(theta){return{bx:CV.CX+CV.SCALE*Math.sin(theta),by:CV.CY+CV.SCALE*Math.cos(theta)}},
+
+  drawBg(){
+    const ctx=this.ctx,g=ctx.createRadialGradient(CV.W/2,CV.H/2,0,CV.W/2,CV.H/2,CV.W);
+    g.addColorStop(0,'#0f172a');g.addColorStop(.6,'#0a0e17');g.addColorStop(1,'#060a0f');
+    ctx.fillStyle=g;ctx.fillRect(0,0,CV.W,CV.H);
+  },
+
+  drawEField(sceneId,by){
+    if(sceneId==='ending')return;
+    const ctx=this.ctx,fr=this.framesSinceStart;
+    const t=40,b=Math.min(by+30,CV.H-40);
+    ctx.setLineDash([6,10]);ctx.lineDashOffset=-fr*1.2;
+    ctx.strokeStyle='rgba(59,130,246,.07)';ctx.lineWidth=1.2;
+    for(let y=t;y<b;y+=48){ctx.beginPath();ctx.moveTo(50,y);ctx.lineTo(CV.W-50,y);ctx.stroke()}
+    ctx.setLineDash([]);ctx.lineDashOffset=0;
+    const ph=(fr*1.5)%30;
+    for(let y=t;y<b;y+=48)for(let x=80;x<CV.W-80;x+=70){
+      const fx=x+(ph<15?ph*1.5:(ph-30)*1.5);
+      if(fx<50||fx>CV.W-50)continue;
+      ctx.fillStyle='rgba(59,130,246,.08)';
+      ctx.beginPath();ctx.moveTo(fx+8,y);ctx.lineTo(fx,y-3);ctx.lineTo(fx,y+3);ctx.closePath();ctx.fill();
+    }
+    ctx.fillStyle='rgba(59,130,246,.13)';ctx.font='bold 11px sans-serif';ctx.textAlign='right';ctx.textBaseline='top';
+    ctx.fillText('E →',CV.W-55,45);
+  },
+
+  drawEnv(){
+    const ctx=this.ctx;
+    const gd=ctx.createLinearGradient(CV.CX-130,CV.CY,CV.CX+130,CV.CY);
+    gd.addColorStop(0,'rgba(71,85,105,0)');gd.addColorStop(.3,'rgba(71,85,105,.35)');gd.addColorStop(.7,'rgba(71,85,105,.35)');gd.addColorStop(1,'rgba(71,85,105,0)');
+    ctx.strokeStyle=gd;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(CV.CX-100,CV.CY);ctx.lineTo(CV.CX+100,CV.CY);ctx.stroke();
+    ctx.strokeStyle='rgba(71,85,105,.12)';ctx.lineWidth=1;
+    for(let t=-80;t<=80;t+=15){ctx.beginPath();ctx.moveTo(CV.CX+t,CV.CY);ctx.lineTo(CV.CX+t-4,CV.CY+5);ctx.stroke()}
+    ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(CV.CX,CV.CY,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText('O',CV.CX,CV.CY-5);
+    ctx.save();ctx.globalAlpha=0.04;ctx.strokeStyle='#94a3b8';ctx.lineWidth=1;ctx.setLineDash([4,6]);
+    ctx.beginPath();ctx.arc(CV.CX,CV.CY,CV.SCALE,0.15,Math.PI-0.15);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  },
+
+  drawPend(bx,by,theta){
+    const ctx=this.ctx;
+    ctx.strokeStyle='rgba(148,163,184,.45)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(CV.CX,CV.CY);ctx.lineTo(bx,by);ctx.stroke();
+    const gl=ctx.createRadialGradient(bx,by,2,bx,by,CV.BR*2);
+    gl.addColorStop(0,'rgba(251,191,36,.1)');gl.addColorStop(1,'rgba(251,191,36,0)');
+    ctx.fillStyle=gl;ctx.beginPath();ctx.arc(bx,by,CV.BR*2,0,Math.PI*2);ctx.fill();
+    const g2=ctx.createRadialGradient(bx-CV.BR*.3,by-CV.BR*.3,2,bx,by,CV.BR);
+    g2.addColorStop(0,'#fcd34d');g2.addColorStop(.6,'#fbbf24');g2.addColorStop(1,'#d97706');
+    ctx.shadowColor='rgba(251,191,36,.18)';ctx.shadowBlur=14;
+    ctx.fillStyle=g2;ctx.beginPath();ctx.arc(bx,by,CV.BR,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(0,0,0,.06)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(bx,by,CV.BR,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.arc(bx-CV.BR*.25,by-CV.BR*.25,CV.BR*.28,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('+',bx,by);
+    if(Math.abs(theta)<.02){
+      ctx.fillStyle='rgba(148,163,184,.4)';ctx.font='12px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('A',bx+CV.BR+4,by+4);
+    }
+  },
+
+  drawAngle(theta){
+    if(Math.abs(theta)<.02)return;
+    const ctx=this.ctx,sa=Math.PI/2,ea=Math.PI/2-theta,r=48;
+    ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(CV.CX,CV.CY,r,ea,sa,theta>0);ctx.stroke();
+    const ma=Math.PI/2-theta/2;
+    ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('θ='+(Math.abs(theta)*180/Math.PI).toFixed(1)+'°',CV.CX+(r+20)*Math.cos(ma),CV.CY+(r+20)*Math.sin(ma)+2);
+  },
+
+  drawLabels(p){
+    const ctx=this.ctx,theta=p.theta,{bx,by}=this.ballXY(theta);
+    const ax=CV.CX,ay=CV.CY+CV.SCALE;
+    // h标注 (左侧竖直)
+    const hx=ax-45;
+    ctx.save();
+    ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(249,115,22,.55)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(hx,ay);ctx.lineTo(hx,by);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(hx-4,ay);ctx.lineTo(hx+4,ay);ctx.moveTo(hx-4,by);ctx.lineTo(hx+4,by);ctx.stroke();
+    ctx.fillStyle='#f97316';ctx.font='bold 13px sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText('h = L(1-cos37°)',hx-8,(ay+by)/2-10);
+    ctx.fillText('= 1.0×(1-0.8) = 0.2m',hx-8,(ay+by)/2+12);
+    ctx.restore();
+    // x标注 (底部水平)
+    const xy=ay+30;
+    ctx.save();
+    ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(59,130,246,.55)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(ax,xy);ctx.lineTo(bx,xy);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(ax,xy-4);ctx.lineTo(ax,xy+4);ctx.moveTo(bx,xy-4);ctx.lineTo(bx,xy+4);ctx.stroke();
+    ctx.fillStyle='#3b82f6';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('x = L·sin37° = 1.0×0.6 = 0.6m',(ax+bx)/2,xy+8);
+    ctx.restore();
+    // 37°弧高亮
+    ctx.save();
+    ctx.shadowColor='rgba(34,197,94,.35)';ctx.shadowBlur=18;
+    ctx.strokeStyle='rgba(34,197,94,.45)';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.arc(CV.CX,CV.CY,CV.SCALE,Math.PI/2,Math.PI/2-theta,true);ctx.stroke();
+    ctx.setLineDash([]);ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(34,197,94,.06)';
+    ctx.beginPath();ctx.moveTo(CV.CX,CV.CY);ctx.arc(CV.CX,CV.CY,CV.SCALE,Math.PI/2,Math.PI/2-theta,true);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // 公式叠加
+    ctx.save();
+    ctx.fillStyle='rgba(34,197,94,.85)';ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=8;
+    ctx.fillText('W合 = F电·x − G·h = 0.4 J',CV.CX,CV.CY+CV.SCALE+55);
+    ctx.shadowBlur=0;
+    ctx.restore();
+  },
+
+  drawForcesFull(bx,by){
+    const ctx=this.ctx,len=CV.ALEN,fl=len*Math.SQRT2;
+    this.arrow(ctx,bx,by,bx,by+len,'#60a5fa',2.5);
+    ctx.fillStyle='#60a5fa';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('G',bx-16,by+len*.5);
+    ctx.fillStyle='rgba(96,165,250,.45)';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('= '+_V.GStr+' N',bx-16,by+len*.75);
+    this.arrow(ctx,bx,by,bx+len,by,'#ef4444',2.5);
+    ctx.fillStyle='#ef4444';ctx.textAlign='center';ctx.fillText('F电',bx+len*.5,by-14);
+    ctx.fillStyle='rgba(239,68,68,.45)';ctx.font='11px sans-serif';ctx.fillText('= '+_V.FqStr+' N',bx+len*.5,by-28);
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(bx,by+len);ctx.lineTo(bx+len,by+len);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(bx+len,by);ctx.lineTo(bx+len,by+len);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+    this.arrow(ctx,bx,by,bx+CV.ALEN*.85,by+CV.ALEN*.85,'#fb923c',2.5);
+    const dl=CV.ALEN*.85;
+    ctx.fillStyle='#fb923c';ctx.textAlign='left';ctx.fillText('F合',bx+dl*.5+10,by+dl*.5-6);
+    ctx.fillStyle='rgba(251,146,60,.45)';ctx.font='11px sans-serif';ctx.fillText('= √('+_V.FqStr+'²+'+_V.GStr+'²) ≈ '+_V.FrStr+' N',bx+dl*.5+10,by+dl*.5+12);
+  },
+
+  drawForcesSimp(bx,by,sceneId,p){
+    const ctx=this.ctx,len=CV.ALEN*.7;
+    this.arrow(ctx,bx,by,bx,by+len,'rgba(96,165,250,.55)',2);
+    ctx.fillStyle='rgba(96,165,250,.6)';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('G',bx-14,by+len*.5);
+    this.arrow(ctx,bx,by,bx+len,by,'rgba(239,68,68,.55)',2);
+    ctx.fillStyle='rgba(239,68,68,.6)';ctx.fillText('F电',bx+len*.5,by-12);
+    if((sceneId==='swing_q3'||sceneId==='sol_q3')&&p.theta<.05){
+      this.arrow(ctx,bx,by,bx,by-len,'rgba(168,85,247,.7)',2.5);
+      ctx.fillStyle='rgba(168,85,247,.8)';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('T',bx-14,by-len*.5);
+    }
+  },
+
+  drawVArrow(bx,by,theta,v){
+    const ctx=this.ctx,va=Math.atan2(-Math.sin(theta),Math.cos(theta)),sc=8,vl=Math.min(v*sc,100);
+    this.arrow(ctx,bx,by,bx+vl*Math.cos(va),by+vl*Math.sin(va),'rgba(103,232,249,.6)',2.5);
+    const ex=bx+vl*Math.cos(va),ey=by+vl*Math.sin(va);
+    ctx.fillStyle='#67e8f9';ctx.font='bold 12px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('v',ex+10,ey);
+    ctx.fillStyle='rgba(103,232,249,.45)';ctx.font='10px sans-serif';ctx.fillText(v.toFixed(2)+' m/s',ex+10,ey+16);
+  },
+
+  drawEnergy(p){
+    const ctx=this.ctx,ex=20,ey=480,ew=175,eh=125,pad=10,barH=13,gap=3;
+    const maxW=ew-pad*2-50,bsx=ex+pad+48;
+    ctx.save();
+    this.rc(ex,ey,ew,eh,8);ctx.fillStyle='rgba(10,15,25,.72)';ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('■ 能量分布',ex+pad,ey+pad);
+    const maxE=Math.max(p.Ek+Math.abs(p.Ep_e)+p.Ep_g,.01);
+    const bars=[{l:'Ek',v:p.Ek,c:'#34d399'},{l:'Ep_g',v:p.Ep_g,c:'#f97316'},{l:'Ep_e',v:Math.abs(p.Ep_e),c:'#3b82f6'}];
+    bars.forEach((b,i)=>{
+      const by=ey+pad+16+i*(barH+gap),bw=Math.max((b.v/maxE)*maxW,1);
+      ctx.fillStyle='rgba(255,255,255,.03)';ctx.fillRect(bsx,by,maxW,barH-1);
+      ctx.fillStyle=b.c;ctx.fillRect(bsx,by,bw,barH-1);
+      ctx.fillStyle='#94a3b8';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(b.l,ex+pad,by+barH/2);
+      ctx.fillStyle=b.c;ctx.textAlign='right';ctx.font='9px sans-serif';ctx.fillText(b.v.toFixed(3)+'J',ex+ew-pad,by+barH/2);
+    });
+    const sy=ey+pad+16+3*(barH+gap)+2;
+    ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(bsx,sy);ctx.lineTo(bsx+maxW,sy);ctx.stroke();
+    ctx.fillStyle='#a78bfa';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('E总',ex+pad,sy+5);
+    ctx.fillStyle='#a78bfa';ctx.textAlign='right';ctx.fillText(p.Etot.toFixed(3)+'J',ex+ew-pad,sy+5);
+    ctx.restore();
+  },
+
+  drawKnown(){
+    // 用DOM元素处理, Canvas不绘制
+  },
+
+  drawTitle(title){
+    if(!title)return;
+    const ctx=this.ctx;
+    ctx.save();
+    ctx.font='bold 14px sans-serif';
+    ctx.fillStyle='rgba(10,15,25,.5)';this.rc(30,24,ctx.measureText(title).width+40,34,8);ctx.fill();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(title,CV.W/2,41);
+    ctx.restore();
+  },
+
+  drawTransText(msg,prog){
+    const ctx=this.ctx,a=prog<.5?prog*2:(1-(prog-.5)*2);
+    ctx.save();ctx.globalAlpha=a*.4;ctx.fillStyle='#000';ctx.fillRect(0,0,CV.W,CV.H);ctx.globalAlpha=1;
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(msg,CV.W/2,CV.H/2);
+    ctx.restore();
+  },
+
+  drawTensionArrow(bx,by,T){
+    if(T<=0)return;
+    const ctx=this.ctx,len=Math.min(T*10,80);
+    this.arrow(ctx,bx,by,bx,by-len,'rgba(168,85,247,.7)',2.5);
+    ctx.fillStyle='rgba(168,85,247,.8)';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('T',bx-14,by-len*.5);
+    ctx.fillStyle='rgba(168,85,247,.45)';ctx.font='10px sans-serif';ctx.fillText(T.toFixed(2)+' N',bx-14,by-len*.5+16);
+  },
+
+  arrow(ctx,x1,y1,x2,y2,color,w){
+    const a=Math.atan2(y2-y1,x2-x1),hl=9,ha=.5;
+    ctx.strokeStyle=color;ctx.lineWidth=w||2.5;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-hl*Math.cos(a-ha),y2-hl*Math.sin(a-ha));ctx.lineTo(x2-hl*Math.cos(a+ha),y2-hl*Math.sin(a+ha));ctx.closePath();ctx.fill();
+  },
+  rc(x,y,w,h,r){
+    if(r>w/2)r=w/2;if(r>h/2)r=h/2;
+    const ctx=this.ctx;
+    ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+  }
+};
+
+// ================================================================
+//  6. 解题面板控制器
+// ================================================================
+// 动态填充步骤数值
+
+
+// 初始化时填充所有步骤数值
+
+
+// ================================================================
+//  7. 标题控制器
+// ================================================================
+// STitle 已移除，改用 drawTitle
+
+// ================================================================
+//  8. 答案汇总控制器
+// ================================================================
+
+// ================================================================
+//  9. 已知量面板
+// ================================================================
+
+// ================================================================
+//  10. UI 控制器
+// ================================================================
+
+// ================================================================
+//  11. 主回调
+// ================================================================
+const totalFrames=TOTAL;
+
+
+
+// ================================================================
+//  12. 星星
+// ================================================================
+const starsEl=document.getElementById('stars');
+for(let i=0;i<80;i++){
+  const s=document.createElement('div');s.className='star';
+  s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';
+  s.style.setProperty('--d',(2+Math.random()*4)+'s');
+  const sz=1+Math.random()*2;s.style.width=sz+'px';s.style.height=sz+'px';
+  starsEl.appendChild(s);
+}
+
+// ================================================================
+//  13. 启动
+// ================================================================
+console.log('[boot] SCENES='+(SCENES?SCENES.length:'null')+' TOTAL='+TOTAL);
+// player-core.js v1 — 物理动画模板公共框架
+// 注入到模板 IIFE 内部，不包装自己的 IIFE
+
+// ================================================================
+//  0. 全局错误捕获
+// ================================================================
+window.onerror = function(msg,url,l,c,e){
+  console.error('[FATAL]',msg,'at',l+':'+c);
+  var h=document.getElementById('emptyHint');
+  if(h){h.style.display='flex';h.textContent='⚠ '+msg+' (line '+l+')';}
+};
+
+// ================================================================
+//  1. 帧控制器 FC
+// ================================================================
+const FC={
+  frame:0,total:10800,fps:60,isPlay:false,isComp:false,
+  _animId:null,_lastT:0,_slow:null,
+  _onFrame:null,_onDone:null,_onPause:null,
+  _effSpd(){
+    let s=this.speed||1;
+    if(this._slow&&this.frame>=this._slow[0]&&this.frame<this._slow[1])s*=this._slow[2];
+    return s;
+  },
+  _loop(ts){
+    if(!this._lastT)this._lastT=ts;
+    const dt=ts-this._lastT;this._lastT=ts;
+    if(this.isPlay){
+      this.frame=Math.min(this.frame+(dt/1000)*this.fps*this._effSpd(),this.total-1);
+      try{if(this._onFrame)this._onFrame(Math.floor(this.frame));}catch(e){console.error('[loop] onFrame err',e);}
+      if(this.frame>=this.total-1){this.isPlay=false;this.isComp=true;if(this._onDone)this._onDone();}
+    }
+    this._animId=requestAnimationFrame(t=>this._loop(t));
+  },
+  start(){this._lastT=0;this._animId=requestAnimationFrame(t=>this._loop(t));},
+  play(){this.isPlay=true;this.isComp=false;this._lastT=0;},
+  pause(){this.isPlay=false;if(this._onPause)this._onPause();},
+  toggle(){
+    if(this.isComp){this.seek(0);this.play();}
+    else if(this.isPlay)this.pause();
+    else this.play();
+  },
+  seek(f){this.frame=Math.max(0,Math.min(f,this.total-1));this.isComp=false;try{if(this._onFrame)this._onFrame(Math.floor(this.frame));}catch(e){console.error('[loop] onFrame err',e);}},
+  setSlow(a,b,c){this._slow=[a,b,c||.3]},
+  clrSlow(){this._slow=null}
+};
+
+// ================================================================
+//  2. 场景调度 SD
+// ================================================================
+const SD={
+  cur:null,prev:null,
+  get(f){
+    const p=f/(FC.total||10800);
+    for(let s of SCENES)if(p>=s.s&&p<s.e)return s.id;
+    return'ending';
+  },
+  prog(f,id){
+    const s=SCENES.find(x=>x.id===id);if(!s)return 0;
+    const r=s.e-s.s;if(r<=0)return 1;
+    return Math.min(1,Math.max(0,(f/(FC.total||10800)-s.s)/r));
+  },
+  def(id){return SCENES.find(x=>x.id===id);},
+  update(f){
+    this.prev=this.cur;this.cur=this.get(f);
+    return{id:this.cur,changed:this.cur!==this.prev};
+  }
+};
+
+// ================================================================
+//  3. 解题面板 Panel
+// ================================================================
+const Panel={el:null,cur:null,_manual:false,_step:0,
+_evalAll(h){return h.replace(/\$\{([^}]+)\}/g,function(m,k){try{return eval(k);}catch(e){console.warn('[eval]',k,e.message);return '['+k+']';}});},
+init(){
+  this.el=document.getElementById('panel');
+  if(this.el)this.el.onclick=function(){Panel._stepClick();};
+},
+_stepClick(){
+  if(!this._manual)return;
+  var cnt=0;if(this.el){
+    var sc=SCENES.find(function(s){return s.id===Panel.cur;});
+    if(sc&&sc.steps)cnt=sc.steps.items.length;
+  }
+  if(this._step<cnt+1){this._step++;this._applyStep(cnt);}
+  if(this._step>cnt&&this._manual)this._manual=false; // 结束后恢复自动
+},
+_applyStep(cnt){
+  if(!this.el)return;
+  for(var i=0;i<cnt;i++){var e=document.getElementById('ps_'+i);if(e)e.classList.toggle('visible',i<this._step);}
+  var ae=document.getElementById('psa_');if(ae)ae.classList.toggle('visible',this._step>cnt);
+},
+renderSteps(sc){
+  if(!sc||!sc.steps){if(this.el)this.el.classList.remove('visible');this.cur=null;return;}
+  var h='<div class="panel-title">'+sc.steps.title+'</div>';
+  sc.steps.items.forEach(function(it,i){h+='<div class="step-row" id="ps_'+i+'"><span class="step-badge">'+(i+1)+'</span><span>'+it+'</span></div>';});
+  h+='<div class="answer-box" id="psa_"><span class="answer-text">'+sc.steps.answer+'</span></div>';
+  this.el.innerHTML=h;
+},
+update(sid,prog,sc){
+  if(!sc||!sc.steps){if(this.cur){if(this.el)this.el.classList.remove('visible');this.cur=null;}return;}
+  if(sid!==this.cur){
+    this.cur=sid;this.renderSteps(sc);if(this.el)this.el.classList.add('visible');
+    for(var i=0;i<sc.steps.items.length;i++){var e=document.getElementById('ps_'+i);if(e){var txt=this._evalAll(e.innerHTML);e.innerHTML=_convertMath(txt);}}
+    var ae=document.getElementById('psa_');if(ae)ae.innerHTML=this._evalAll(ae.innerHTML);
+    _renderMath(this.el);
+    // 解题场景启用手动模式
+    this._manual=sid.indexOf('sol_')===0;
+    this._step=this._manual?0:999;
+    this._applyStep(sc.steps.items.length);
+  }
+  if(!this._manual){
+    // 自动模式：随进度渐显
+    var cnt=sc.steps.items.length,vis=Math.min(Math.floor(prog/.85*cnt),cnt);
+    for(var i=0;i<cnt;i++){var e=document.getElementById('ps_'+i);if(e)e.classList.toggle('visible',i<vis);}
+    var ae=document.getElementById('psa_');if(ae)ae.classList.toggle('visible',prog>.85);
+  }
+}};
+
+// ================================================================
+//  4. 答案汇总 End
+// ================================================================
+const End={el:null,_inited:false,
+  init(){
+    this.el=document.getElementById('endingBg');
+    var c=document.getElementById('endingAnswers');if(!c||this._inited)return;
+    var items=[];
+    for(var i=0;i<SCENES.length;i++){var s=SCENES[i];
+      if(s.answerItems){
+        s.answerItems.forEach(function(ai){var val=ai.replace(/\$\{([^}]+)\}/g,function(m,k){try{return eval(k);}catch(e){console.warn('[eval]',k,e.message);return '['+k+']';}});items.push('<div class="ending-item"><span class="l">'+(s.title||'')+'</span><span class="r">'+val+'</span></div>');});
+      }
+    }
+    c.innerHTML=items.length?items.join(''):'暂无答案';this._inited=true;
+  },
+  update(id,prog,sc){
+    if(id!=='ending'){if(this.el)this.el.classList.remove('visible');return}
+    if(!this._inited)this.init();
+    var a=Math.min(1,(prog||0)/.6);if(this.el){this.el.style.opacity=a;this.el.classList.add('visible');}
+  }
+};
+
+// ================================================================
+//  5. 已知量面板 KP
+// ================================================================
+const KP={el:null,_inited:false,
+  init(content){
+    if(this._inited)return;
+    this.el=document.getElementById('knownPanel');
+    if(!this.el)return;
+    this._inited=true;
+    if(content)this.el.innerHTML='<div class="known-title">■ 已知量</div>'+content;
+  },
+  update(id){this.init();if(this.el)this.el.classList.toggle('visible',id==='intro');}
+};
+
+// ================================================================
+//  6. 控制栏 UI
+// ================================================================
+const UI={_ready:false,_navDots:null,_solScenes:[],
+  _initNav(){
+    this._solScenes=SCENES?SCENES.filter(function(s){return s.id&&s.id.indexOf('sol_')===0;}):[];
+    if(this._solScenes.length<2)return;
+    var nav=document.createElement('div');nav.style.cssText='display:flex;gap:6px;align-items:center;margin:0 4px;flex-shrink:0';
+    for(var i=0;i<this._solScenes.length;i++){
+      var dot=document.createElement('button');
+      dot.style.cssText='width:8px;height:8px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:transparent;cursor:pointer;padding:0;transition:all .2s';
+      dot.title=(i+1)+'. '+this._solScenes[i].title;
+      dot.onclick=function(idx){return function(){FC.seek(UI._solScenes[idx].sf);UI.sync();};}(i);
+      nav.appendChild(dot);
+    }
+    this._navDots=nav.children;
+    // Insert after play button
+    this.pb.parentNode.insertBefore(nav,this.pb.nextSibling);
+  },
+  init(){
+    this.pb=document.getElementById('playBtn');this.rw=document.getElementById('rewindBtn');
+    this.pr=document.getElementById('progressBar');this.pf=document.getElementById('progressFill');
+    this.tl=document.getElementById('timeLabel');this.sp=document.getElementById('speedBtn');
+    if(!this.pb||!this.pr)return;this._ready=true;
+    this._initNav();
+    this.pb.onclick=()=>{FC.toggle();this.upd()};this.rw.onclick=()=>{FC.seek(0);this.sync()};
+    this.pr.onclick=e=>{var r=this.pr.getBoundingClientRect(),p=Math.max(0,Math.min((e.clientX-r.left)/r.width,1));FC.seek(Math.floor(p*FC.total));this.sync()};
+    this.sp.onclick=()=>{var ss=[.5,1,1.5,2,3,4],ci=ss.indexOf(FC.speed);FC.speed=ss[(ci+1)%ss.length];this.sp.textContent=FC.speed+'×'};
+    document.addEventListener('keydown',e=>{switch(e.code){case'Space':e.preventDefault();FC.toggle();this.upd();break;case'ArrowRight':FC.seek(FC.frame+5*FC.fps);this.sync();break;case'ArrowLeft':FC.seek(FC.frame-5*FC.fps);this.sync();break;case'KeyR':FC.seek(0);this.sync();break}});
+  },
+  upd(){if(!this._ready||!this.pb)return;if(FC.isComp)this.pb.textContent='↺';else if(FC.isPlay)this.pb.textContent='⏸';else this.pb.textContent='▶'},
+  sync(){this.upd();this.updProg(FC.frame,FC.total)},
+  updProg(f,t){
+    if(!this._ready)return;
+    if(this.pf)this.pf.style.width=Math.min((f/t)*100,100)+'%';
+    if(this.tl){var cs=Math.floor(f/FC.fps),ts=Math.floor(t/FC.fps);this.tl.textContent=String(Math.floor(cs/60))+':'+String(cs%60).padStart(2,'0')+' / '+String(Math.floor(ts/60))+':'+String(ts%60).padStart(2,'0');}
+    // 更新导航点高亮
+    if(this._navDots&&this._navDots.length>0){
+      var sid=SD?SD.cur:null;
+      for(var di=0;di<this._navDots.length;di++){
+        var sc=this._solScenes[di];
+        if(sc&&sc.id===sid)this._navDots[di].style.background='rgba(255,255,255,.7)';
+        else this._navDots[di].style.background='transparent';
+      }
+    }
+  }
+};
+
+// ================================================================
+//  7. 数学渲染工具
+// ================================================================
+var _renderMath = function(el){
+  try{if(window.renderMathInElement)renderMathInElement(el,{delimiters:[{left:'$',right:'$',display:false}]});}catch(e){}
+};
+var _convertMath=function(t){
+  if(!t)return t;
+  if(/[√²³×θΔπα½≥≤≈]/.test(t)){
+    return '$'+t+'$';
+  }
+  return t;
+};
+
+// ================================================================
+//  8. 星星生成
+// ================================================================
+(function(){var e=document.getElementById('stars');if(!e)return;for(var i=0;i<60;i++){var s=document.createElement('div');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.setProperty('--d',(2+Math.random()*4)+'s');var sz=1+Math.random()*2;s.style.width=sz+'px';s.style.height=sz+'px';e.appendChild(s);}})();
+
+// ================================================================
+//  9. onFrame 主循环
+// ================================================================
+function onFrame(frame){
+  const ref=SD.update(frame);
+  const sceneId=ref.id,changed=ref.changed;
+  const prog=SD.prog(frame,sceneId);
+  const scene=SCENES.find(s=>s.id===sceneId);
+  if(!scene)return;
+  const st=scene.physics?scene.physics(prog):{};
+
+  if(changed){
+    KP.update(sceneId);
+    if(scene.steps)FC.setSlow(scene.sf,scene.ef,.35);
+    else FC.clrSlow();
+  }
+
+  try{R.render(scene,st,frame);}catch(e){console.error('[render]',e);}
+  try{Panel.update(sceneId,prog,scene);}catch(e){console.error('[panel]',e);}
+  try{End.update(sceneId,prog,scene);}catch(e){console.error('[end]',e);}
+  UI.updProg(frame,FC.total);
+}
+
+// ================================================================
+//  10. 启动
+// ================================================================
+FC._onFrame=onFrame;
+FC._onDone=()=>{UI.upd()};
+
+if(!SCENES||SCENES.length===0){
+  console.error('[core] 场景列表为空');
+  var h=document.getElementById('emptyHint');
+  if(h)h.style.display='block';
+}else{
+  Panel.init();
+  R.init(document.getElementById('mainCanvas'));
+  UI.init();
+  FC.start();
+  FC.seek(0);
+  UI.upd();
+}
+
+
+
+})();</script>
+<!-- 生成时间: 2026-06-29 15:48:28 -->
+</body>
+</html>
