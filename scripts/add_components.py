@@ -1,7 +1,7 @@
 """Add 8 new physics components to components.js."""
 import re
 
-COMPONENTS_JS_PATH = "D:/my_project/education_web/frontend/components.js"
+COMPONENTS_JS_PATH = "D:/my_python_project/education_web/frontend/2d/js/components.js"
 
 NEW_COMPONENTS = r"""
 

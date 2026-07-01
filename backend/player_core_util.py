@@ -9,7 +9,7 @@ player_core_util.py — 模板公共代码剥离 + player-core 注入
 import re
 from pathlib import Path
 
-CORE_PATH = Path(__file__).parent.parent / 'frontend' / 'player-core.js'
+CORE_PATH = Path(__file__).parent.parent / 'frontend' / '2d' / 'js' / 'player-core.js'
 _core_cache = None
 
 _COMMON_CONST = frozenset(['FC', 'SD', 'Panel', 'End', 'Ending', 'KP', 'KnownPanel', 'UI'])

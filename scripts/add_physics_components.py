@@ -1,7 +1,7 @@
 """Add physics simulation components to components.js."""
 import re
 
-COMPONENTS_PATH = "D:/my_project/education_web/frontend/components.js"
+COMPONENTS_PATH = "D:/my_python_project/education_web/frontend/2d/js/components.js"
 
 NEW_CODE = r"""
 

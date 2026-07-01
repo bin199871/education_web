@@ -178,7 +178,7 @@ body{background:#080c18;color:#e0e8f0;font-family:"Microsoft YaHei","PingFang SC
   </div>
 </div>
 
-<script src="components.js"></script>
+<script src="js/components.js"></script>
 <script>
 (function(){
 "use strict";
@@ -323,7 +323,7 @@ function generateTemplate(){
     if(data.fallback){setStatus('⚠️ 未匹配模板','');emptyState.style.display='';return;}
     if(data.success){
       var iframe=document.getElementById('premium-frame');
-      iframe.src='/premium-output.html?_t='+Date.now();
+      iframe.src='/pages/premium-output.html?_t='+Date.now();
       iframe.style.display='block';
       emptyState.style.display='none';
       document.getElementById('btn-expand').style.display='flex';

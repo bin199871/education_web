@@ -18,8 +18,8 @@ dist/
 build/
 
 # Generated output files (regenerated on each analysis)
-frontend/timeline.json
-frontend/index.html
+frontend/2d/data/timeline.json
+frontend/2d/index.html
 
 # Sample data (regenerated when running tests)
 data/layer3_sample_storyboard.json

@@ -424,7 +424,7 @@ TEMPLATE_REGISTRY = {
 
 class TemplateEngine:
     def __init__(self, templates_dir: str = None, llm_config: dict = None):
-        self.templates_dir = Path(templates_dir or Path(__file__).parent / 'templates')
+        self.templates_dir = Path(templates_dir or Path(__file__).parent / '2d' / 'templates')
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.llm_config = llm_config or {}
         self.registry = dict(TEMPLATE_REGISTRY)

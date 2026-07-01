@@ -59,8 +59,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── 静态文件服务目录（指向 frontend/） ───
-STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend"
+# ─── 静态文件服务目录（指向 frontend/2d/） ───
+STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend" / "2d"
 
 
 # ─── LLM 配置 ───
@@ -709,7 +709,7 @@ async def template_generate(req: TemplateGenRequest):
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=str(e))
     try:
-        output_path = STATIC_DIR / "premium-output.html"
+        output_path = STATIC_DIR / "pages" / "premium-output.html"
         with open(str(output_path), "w", encoding="utf-8") as f:
             f.write(html)
     except Exception as e:
@@ -752,8 +752,8 @@ async def serve_static(path: str):
     index_path = file_path / "index.html"
     if index_path.is_file():
         return FileResponse(str(index_path))
-    # 最后尝试 test-layer1.html（开发便利）
-    test_path = STATIC_DIR / "test-layer1.html"
+    # 最后尝试 pages/test-layer1.html（开发便利）
+    test_path = STATIC_DIR / "pages" / "test-layer1.html"
     if test_path.is_file():
         return FileResponse(str(test_path))
     raise HTTPException(status_code=404, detail="Not found")
@@ -765,8 +765,8 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "3001"))
     print("=" * 40)
     print(f"  Layer 1 + 2 + 3 + 4 全栈服务已启动")
-    print(f"  http://localhost:{port}/test-layer1.html")
-    print(f"  http://localhost:{port}/               (Layer 4 动画播放器)")
+    print(f"  http://localhost:{port}/                (Layer 4 动画播放器)")
+    print(f"  http://localhost:{port}/pages/test-layer1.html  (Layer 1 测试页)")
     print(f"  API: POST /api/analyze              (Layer 1)")
     print(f"  API: POST /api/analyze/acts         (Layer 1 + 2)")
     print(f"  API: POST /api/analyze/storyboard   (Layer 1 + 2 + 3)")

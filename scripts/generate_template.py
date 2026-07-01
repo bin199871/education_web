@@ -247,7 +247,7 @@ def main():
         print(html)
         return
 
-    tdir = os.path.join(os.path.dirname(__file__), "..", "backend", "templates")
+    tdir = os.path.join(os.path.dirname(__file__), "..", "backend", "2d", "templates")
     out = args.output or os.path.join(tdir, f"{args.template_id}.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)

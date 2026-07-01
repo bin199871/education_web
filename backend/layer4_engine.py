@@ -1589,7 +1589,7 @@ if __name__ == "__main__":
 
     ROOT = Path(__file__).resolve().parent.parent
     DATA_DIR = ROOT / "data"
-    FRONTEND_DIR = ROOT / "frontend"
+    FRONTEND_DIR = ROOT / "frontend" / "2d"
     DATA_DIR.mkdir(exist_ok=True)
     FRONTEND_DIR.mkdir(exist_ok=True)
 
@@ -1599,7 +1599,7 @@ if __name__ == "__main__":
         input_path = sys.argv[1]
 
     # 生成 timeline JSON
-    timeline = orchestrate_from_file(input_path, str(FRONTEND_DIR / "timeline.json"))
+    timeline = orchestrate_from_file(input_path, str(FRONTEND_DIR / "data" / "timeline.json"))
 
     # 生成独立 HTML
     generate_html_timeline(timeline, str(FRONTEND_DIR / "index.html"))
